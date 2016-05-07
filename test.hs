@@ -10,15 +10,15 @@ zero = Fun '0' []
 
 suc = Fun 's'
 
-suc_1 = Fun 'S' --[Var 1]
+suc_1 = Fun 'S'
 
-add = Fun 'a' --[Var 1, Var 2]
+add = Fun 'a'
 
-add_1 = Fun 'A' --[Var 1, Var 2]
+add_1 = Fun 'A'
 
-mul = Fun 'm' --[Var 1, Var 2]
+mul = Fun 'm'
 
-mul_1 = Fun 'M' --[Var 1, Var 2]
+mul_1 = Fun 'M'
 
 x = Var 'x'
 
@@ -31,14 +31,17 @@ z = Var 'z'
 originalTRS = [mul[x, suc[y]] --> add[x, mul [x, y]]]
 --works for : add[x, zero] --> x
 --works for : mul[x, zero] --> zero
+--works for : add[x, suc[y]] --> suc[add[x,y]]
+--works for : 
 
-ruleTest = add[x, suc[y]] --> suc[add[x,y]]
+ruleTest = mul[x, suc[y]] --> add[x, mul[x,y]]
 
 functions = [((suc []), 1), ((add []), 2), ((mul []), 2)]
 
 --manually constructed, have to write something which constructs this...
 
 iterLexicoTRS = [ suc[x] --> suc_1[x]
+    , suc_1[x] --> x
     , add[x, y] --> add_1[x, y]
     , add_1[x, y] --> x --select
     , add_1[x, y] --> y
@@ -70,10 +73,13 @@ containsTerm reductions term = if length reductions == 0 then
         True
     else (containsTerm (tail(reductions)) term)
 
-applyRules :: (Eq v) => Term Char v-> Int -> [Reduct  Char v Char] -> [Reduct  Char v Char]
-applyRules term counter reductions = if length reductions /= 0 && counter /= 0 && not(containsTerm reductions term) then
-    flatten (Prelude.map (\x -> (applyRules term (counter-1) (fullRewrite iterLexicoTRS (result x)))) reductions)
-    else reductions --reductions
+--applyRules :: (Eq v) => Term Char v-> Int -> [Reduct  Char v Char] -> [Reduct  Char v Char]
+applyRules term counter reductions = if (containsTerm reductions term) then 
+        reductions 
+    else if length reductions /= 0 && counter /= 0 then
+        flatten (Prelude.map (\x -> (applyRules term (counter-1) (fullRewrite iterLexicoTRS (result x)))) reductions)
+    else 
+        []
 
 main = printRuleApplications(applyRules (rhs ruleTest) 10 (fullRewrite iterLexicoTRS (lhs ruleTest)))
 
