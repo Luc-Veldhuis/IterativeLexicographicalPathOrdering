@@ -72,7 +72,7 @@ containsTerm reductions term = if length reductions == 0 then
 
 applyRules :: (Eq v) => Term Char v-> Int -> [Reduct  Char v Char] -> [Reduct  Char v Char]
 applyRules term counter reductions = if length reductions /= 0 && counter /= 0 && not(containsTerm reductions term) then
-    reductions--Prelude.map (\x -> (applyRules term (counter-1) (fullRewrite iterLexicoTRS (result x)))) reductions --Prelude.map (\x -> (applyRules term (counter-1) (fullRewrite iterLexicoTRS (result x)))) reductions --(applyRules term (counter-1) (fullRewrite iterLexicoTRS (result (head reductions)))) ++ (applyRules term counter (tail(reductions)))
+    flatten (Prelude.map (\x -> (applyRules term (counter-1) (fullRewrite iterLexicoTRS (result x)))) reductions)
     else reductions --reductions
 
 main = printRuleApplications(applyRules (rhs ruleTest) 10 (fullRewrite iterLexicoTRS (lhs ruleTest)))
