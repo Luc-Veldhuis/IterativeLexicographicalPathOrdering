@@ -6,6 +6,12 @@ import Data.Char
 import Data.Set
 import System.IO
 
+--Using https://hackage.haskell.org/package/term-rewriting-0.2
+--From http://cl-informatik.uibk.ac.at/software/haskell-rewriting/
+
+--Initialize function symbols and variables in a way I later have to change
+--Dedekind rules
+
 zero = Fun '0' []
 
 suc = Fun 's'
@@ -28,20 +34,27 @@ z = Var 'z'
 
 (-->) = Rule
 
-originalTRS = [mul[x, suc[y]] --> add[x, mul [x, y]]]
+--Rules of the Dedekind TRS
+originalTRS = [mul[x, suc[y]] --> add[x, mul [x, y]], add[x, zero] --> x, mul[x, zero] --> zero, add[x, suc[y]] --> suc[add[x,y]]]
+
+--Testing rules:
 --works for : add[x, zero] --> x
 --works for : mul[x, zero] --> zero
 --works for : add[x, suc[y]] --> suc[add[x,y]]
 --works for : 
 
-ruleTest = mul[x, suc[y]] --> add[x, mul[x,y]]
-
+--How I would like to defined functions with arity and ordering
 functions = [((suc []), 1), ((add []), 2), ((mul []), 2)]
 
 order = [mul [] --> add [], add [] --> suc []]
 
---manually constructed, have to write something which constructs this...
+--Still not working for this :(
+-- rule I was testing
+ruleTest = mul[x, suc[y]] --> add[x, mul[x,y]]
 
+
+--manually constructed, I want to construct functions which will do this automatically
+--All the possible put, select, copy and lex rules in a TRS which have to be applied to the originalTRS left hand side terms to 
 iterLexicoTRS = [ suc[x] --> suc_1[x]
     , suc_1[x] --> x
     , add[x, y] --> add_1[x, y]
@@ -66,10 +79,13 @@ iterLexicoTRS = [ suc[x] --> suc_1[x]
     , mul_1[x, add[y, z]] --> mul[x, add_1[y, z]]
     , mul_1[add[x, y], z] --> mul[add_1[x, y], mul_1[add[x, y], z]] ]
 
-printRuleApplications reductions = mapM (\r -> print(result r)) reductions
+-- Handy functions:
 
 containsRule [] rule = False
 containsRule (h:t) rule = if(h == rule) then True else containsRule t rule
+
+flatten [] = []
+flatten (h:t) = h ++ (flatten t)
 
 containsTerm :: (Eq f, Eq v) => [Reduct f v v'] -> Term  f v -> Bool
 containsTerm reductions term = if length reductions == 0 then 
@@ -78,6 +94,39 @@ containsTerm reductions term = if length reductions == 0 then
         True
     else (containsTerm (tail(reductions)) term)
 
+--Also makes it reflexive. Make rules like m -> a, a -> s 
+--into m -> a, a -> s, m -> s, m -> m, a -> a, s -> s
+--These is a mistake with types in the function, causing the print function to fail
+makeTransitiveRules termLeft order termRight = if isDerivable termLeft order termRight then [termLeft --> termRight] else []
+makeTransitive order functions = flatten (Prelude.map (\x -> flatten (Prelude.map (makeTransitiveRules x order) functions)) functions)
+
+--Remove reflexivity from terms
+makeIrreflexive order = Prelude.filter (\x -> (lhs x) /= (rhs x)) order
+
+--get the arity of a term without arity if a list with terms with arity is supplied
+--getArity :: [(Term a b, Int)] -> Term a b -> Int
+getArity terms term = snd (head(Prelude.filter (\x -> if fst x == term then True else False) terms)) --not the nicest, but filter should return only 1 element
+
+--Copy a term x number of times (helper for the copy function)
+copyTerm term 0 = []
+copyTerm term times = term : (copyTerm term (times -1))
+
+--Get the function symbols for a term. The first 'show' will print '{symbol}' with the ' so I have to get the second item in the [Char]
+getFunctionSymbol term = head(tail(show (head(Term.funs term))))
+
+--Casts the list into a set and back to remove duplicates POSSIBLE BUG: IS THE ORDER CHANGED???
+removeDuplicates list = toList(fromList(list))
+
+--Generates x number of variables, numbering them starting from 1
+generateVariables 0 = []
+generateVariables arity = generateVariables (arity -1) ++ [Var arity]
+
+--Generates x number of variables, numbering them starting from the offset
+generateVariablesOffset 0  offset = []
+generateVariablesOffset arity  offset = generateVariables (arity -1) ++ [Var (arity+offset)]
+
+--Function which applies the rules x number of times until it found something or not yet.
+--Something is still wrong here ...
 --getDerivation :: (Eq v) => Term Char v-> Int -> [Reduct  Char v Char] -> [Reduct  Char v Char]
 getDerivation term counter reductions trs= if (containsTerm reductions term) then 
         reductions 
@@ -86,56 +135,51 @@ getDerivation term counter reductions trs= if (containsTerm reductions term) the
     else 
         []
 
-isDerivable leftTerm reductionRules rightTerm = let result = getDerivation rightTerm (length reductionRules +1) (fullRewrite reductionRules leftTerm) reductionRules in if leftTerm == rightTerm then True else if (length result) == 0 then False else True --Make this maybe, you cannot say false
+--Should make this return a Maybe, because you cannot say that it is not derivable
+isDerivable leftTerm reductionRules rightTerm = let result = getDerivation rightTerm (length reductionRules +1) (fullRewrite reductionRules leftTerm) reductionRules in 
+    if leftTerm == rightTerm then True else if (length result) == 0 then False else True
 
-main = printRuleApplications(getDerivation (rhs ruleTest) 10 (fullRewrite iterLexicoTRS (lhs ruleTest)) iterLexicoTRS)
+--print statement, gave an error otherwise
+printRuleApplications reductions = mapM (\r -> print(result r)) reductions
 
-flatten [] = []
-flatten (h:t) = h ++ (flatten t)
+--Checks if the ruleTest is derivable
+main = print (isDerivable (lhs ruleTest) iterLexicoTRS (rhs ruleTest))
 
-makeTransitiveRules termLeft order termRight = if isDerivable termLeft order termRight then [termLeft --> termRight] else []
-
-makeTransitive order functions = flatten (Prelude.map (\x -> flatten (Prelude.map (makeTransitiveRules x order) functions)) functions)
-
-makeIrreflexive order = Prelude.filter (\x -> (lhs x) /= (rhs x)) order
-
-getArity terms term = snd (head(Prelude.filter (\x -> if fst x == term then True else False) terms)) --not the nicest, but filter should return only 1 element
-
-copyTerm term 0 = []
-copyTerm term times = term : (copyTerm term (times -1))
-
-getFunctionSymbol term = head(tail(show (head(Term.funs term))))
-
-removeDuplicates list = toList(fromList(list))
-
-generateVariables 0 = []
-generateVariables arity = generateVariables (arity -1) ++ [Var arity]
-
+--Functions to generate all the rules:
+--Put
 generatePutRule (term, arity) = Fun (getFunctionSymbol term) (generateVariables arity) --> Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)
-
 generatePut terms = Prelude.map generatePutRule terms
 
+--Select
 generateSelectRule (term, arity) varNumber = if varNumber > 0 then (generateSelectRule (term, arity) (varNumber-1)) ++ [Fun (toUpper(getFunctionSymbol term)) (generateVariables arity) --> Var varNumber] else []
-
 generateSelectRules (term, arity) = generateSelectRule (term, arity) arity
-
 generateSelect terms = flatten(Prelude.map generateSelectRules terms)
 
-generateCopyRule terms irreflexiveOrder (term, arity) rootTerm = if isDerivable term irreflexiveOrder rootTerm then [Fun (toUpper(getFunctionSymbol term)) (generateVariables arity) --> Fun (toLower(getFunctionSymbol rootTerm)) (copyTerm (Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)) (getArity terms rootTerm))] else []
+--Copy
+generateCopyRule terms irreflexiveOrder (term, arity) rootTerm = if isDerivable term irreflexiveOrder rootTerm then 
+    [Fun (toUpper(getFunctionSymbol term)) (generateVariables arity) --> 
+        Fun (toLower(getFunctionSymbol rootTerm)) (copyTerm (Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)) (getArity terms rootTerm))] 
+    else []
 
 generateCopyRules terms order (term, arity) = let irreflexiveOrder = makeIrreflexive order in --get irreflexive order
     let otherTerms = Prelude.filter (\x -> x /= term) (Prelude.map (\x -> rhs x) irreflexiveOrder) in --get all other terms in the order
         removeDuplicates (flatten (Prelude.map (\x -> generateCopyRule terms irreflexiveOrder (term, arity) x) otherTerms)) --generate copy rules
-
 generateCopy terms order = flatten (Prelude.map (generateCopyRules terms order) terms)
 
+--Lex
+--NOT YET IMPLEMENTED
 generateLexicoRule order (term, arity) = Fun (getFunctionSymbol term) (generateVariables arity) --> Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)
-
+--generateLexicoRules order term = 
 generateLexico terms order = Prelude.map (generateLexicoRule order) terms
 
+--Generate all rules and merge them together without duplicates
 --generateIterLexico = removeDuplicates((generatePut functions) ++ (generateCopy functions order) ++ (generateSelect functions) ++ (generateLexico functions order))
 
-test = print(mul_1[x, y] == mul_1[x, y])
+
+--Some test cases
+test0 = print(mul_1[x, y] == mul_1[x, y])
+
+test1 = printRuleApplications(getDerivation (rhs ruleTest) 10 (fullRewrite iterLexicoTRS (lhs ruleTest)) iterLexicoTRS)
 
 test2 = length (fullRewrite iterLexicoTRS (lhs ruleTest))
 
@@ -151,4 +195,5 @@ test7 = generateVariables 3
 
 --test8 = generateIterLexico
 
---test9 = generateCopy functions (makeTransitive order (Prelude.map (\x -> fst x) functions)) --somehow does not work like this, but works when I type it in the console :/
+--somehow does not work like this, but works when I type it in the console :/
+--test9 = generateCopy functions (makeTransitive order (Prelude.map (\x -> fst x) functions)) 
