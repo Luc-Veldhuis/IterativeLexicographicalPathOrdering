@@ -121,19 +121,19 @@ generateSelectRules (term, arity) = generateSelectRule (term, arity) arity
 
 generateSelect terms = flatten(Prelude.map generateSelectRules terms)
 
-generateCopyRule terms irreflexiveOrder (term, arity) rootTerm = if isDerivable term irreflexiveOrder rootTerm then [Fun (toUpper(getFunctionSymbol term)) (generateVariables arity) --> Fun (toUpper(getFunctionSymbol rootTerm)) (copyTerm (Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)) (getArity terms term))] else []
+generateCopyRule terms irreflexiveOrder (term, arity) rootTerm = if isDerivable term irreflexiveOrder rootTerm then [Fun (toUpper(getFunctionSymbol term)) (generateVariables arity) --> Fun (toLower(getFunctionSymbol rootTerm)) (copyTerm (Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)) (getArity terms rootTerm))] else []
 
 generateCopyRules terms order (term, arity) = let irreflexiveOrder = makeIrreflexive order in --get irreflexive order
-    let otherTerms = Prelude.filter (\x -> x /= term) (Prelude.map (\x -> lhs x) irreflexiveOrder) in --get all other terms in the order
-        flatten (Prelude.map (\x -> generateCopyRule terms irreflexiveOrder (term, arity) x) otherTerms) --generate copy rules
-		
+    let otherTerms = Prelude.filter (\x -> x /= term) (Prelude.map (\x -> rhs x) irreflexiveOrder) in --get all other terms in the order
+        removeDuplicates (flatten (Prelude.map (\x -> generateCopyRule terms irreflexiveOrder (term, arity) x) otherTerms)) --generate copy rules
+
 generateCopy terms order = flatten (Prelude.map (generateCopyRules terms order) terms)
 
 generateLexicoRule order (term, arity) = Fun (getFunctionSymbol term) (generateVariables arity) --> Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)
 
 generateLexico terms order = Prelude.map (generateLexicoRule order) terms
 
-generateIterLexico = removeDuplicates((generatePut functions) ++ (generateCopy functions order) ++ (generateSelect functions) ++ (generateLexico functions order))
+--generateIterLexico = removeDuplicates((generatePut functions) ++ (generateCopy functions order) ++ (generateSelect functions) ++ (generateLexico functions order))
 
 test = print(mul_1[x, y] == mul_1[x, y])
 
@@ -149,6 +149,6 @@ test6 = generatePut [((suc []), 1)]
 
 test7 = generateVariables 3
 
-test8 = generateIterLexico
+--test8 = generateIterLexico
 
---test9 = (makeTransitive order (Prelude.map (\x->fst x) functions)) --somehow does not work like this, but works when I type it in the console :/
+--test9 = generateCopy functions (makeTransitive order (Prelude.map (\x -> fst x) functions)) --somehow does not work like this, but works when I type it in the console :/
