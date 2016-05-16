@@ -80,6 +80,9 @@ iterLexicoTRS = [ suc[x] --> suc_1[x]
     , mul_1[add[x, y], z] --> mul[add_1[x, y], mul_1[add[x, y], z]] ]
 
 -- Handy functions:
+makeList 0 = []
+makeList n = makeList (n-1) ++ [n]
+
 
 containsRule [] rule = False
 containsRule (h:t) rule = if(h == rule) then True else containsRule t rule
@@ -96,9 +99,10 @@ containsTerm reductions term = if length reductions == 0 then
 
 --Also makes it reflexive. Make rules like m -> a, a -> s 
 --into m -> a, a -> s, m -> s, m -> m, a -> a, s -> s
---These is a mistake with types in the function, causing the print function to fail
-makeTransitiveRules termLeft order termRight = if isDerivable termLeft order termRight then [termLeft --> termRight] else []
-makeTransitive order functions = flatten (Prelude.map (\x -> flatten (Prelude.map (makeTransitiveRules x order) functions)) functions)
+makeTransitiveRule order termLeft termRight = if isDerivable termLeft order termRight then [Fun (getFunctionSymbol termLeft) [] --> Fun (getFunctionSymbol termRight) []] else []
+makeTransitiveRules terms order termLeft = flatten (Prelude.map (makeTransitiveRule order termLeft) terms)
+--makeTransitive :: Eq(b) => [Rule Char rhs] -> [Term Char b] -> [Rule Char rhs]
+makeTransitive order terms = flatten (Prelude.map (makeTransitiveRules terms order) terms)
 
 --Remove reflexivity from terms
 makeIrreflexive order = Prelude.filter (\x -> (lhs x) /= (rhs x)) order
@@ -123,11 +127,19 @@ generateVariables arity = generateVariables (arity -1) ++ [Var arity]
 
 --Generates x number of variables, numbering them starting from the offset
 generateVariablesOffset 0  offset = []
-generateVariablesOffset arity  offset = generateVariables (arity -1) ++ [Var (arity+offset)]
+generateVariablesOffset arity  offset = generateVariablesOffset (arity -1) offset ++ [Var (arity+offset)]
 
 --Function which applies the rules x number of times until it found something or not yet.
 --Something is still wrong here ...
 --getDerivation :: (Eq v) => Term Char v-> Int -> [Reduct  Char v Char] -> [Reduct  Char v Char]
+
+--Comparing terms goes wrong
+--termsAreEqual :: (Eq a, Eq b) => Term a b -> Term a b -> Bool
+termsAreEqual (Fun a b) (Var c) = False
+termsAreEqual (Var a) (Var b) = a == b
+termsAreEqual (Var a) (Fun b c) = False
+termsAreEqual (Fun a b) (Fun c d) =  if (Term.funs(Fun a []) == Term.funs(Fun c []) && length b == length d && length b /= 0) then and(Prelude.map (\x -> termsAreEqual (fst x) (snd x)) (Prelude.zip b d)) else if (Term.funs(Fun a []) == Term.funs(Fun c []) && length b == length d && length b == 0) then True else False
+
 getDerivation term counter reductions trs= if (containsTerm reductions term) then 
         reductions 
     else if length reductions /= 0 && counter /= 0 then
@@ -167,13 +179,22 @@ generateCopyRules terms order (term, arity) = let irreflexiveOrder = makeIrrefle
 generateCopy terms order = flatten (Prelude.map (generateCopyRules terms order) terms)
 
 --Lex
---NOT YET IMPLEMENTED
-generateLexicoRule order (term, arity) = Fun (getFunctionSymbol term) (generateVariables arity) --> Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)
---generateLexicoRules order term = 
-generateLexico terms order = Prelude.map (generateLexicoRule order) terms
+generateLexicoRHSTerm (substitutionTerm, substitutionArity) arity position lhsTerm = generateVariables (position -1) ++ [Fun (toUpper(getFunctionSymbol substitutionTerm)) (generateVariablesOffset substitutionArity arity)] ++ copyTerm lhsTerm (arity-position)
+
+generateLexicoLHSTerm (substitutionTerm, substitutionArity) arity position = generateVariables (position -1) ++ [Fun (toLower(getFunctionSymbol substitutionTerm)) (generateVariablesOffset substitutionArity arity)] ++ (generateVariablesOffset (arity - position) position)
+
+generateLexicoRule (term, arity) position (substitutionTerm, substitutionArity) = let lhsTerm = Fun (toUpper(getFunctionSymbol term)) (generateLexicoLHSTerm (substitutionTerm, substitutionArity) arity position) in
+ lhsTerm --> Fun (toLower(getFunctionSymbol term)) (generateLexicoRHSTerm (substitutionTerm, substitutionArity) arity position lhsTerm)
+
+generateLexicoRulesOnPosition terms (term, arity) position = Prelude.map (generateLexicoRule (term, arity) position) terms
+
+generateLexicoRules terms (term, arity) = let numberOfPositions = makeList arity in
+    flatten (Prelude.map (generateLexicoRulesOnPosition terms (term, arity)) numberOfPositions)
+
+generateLexico terms = flatten (Prelude.map (generateLexicoRules terms) terms)
 
 --Generate all rules and merge them together without duplicates
---generateIterLexico = removeDuplicates((generatePut functions) ++ (generateCopy functions order) ++ (generateSelect functions) ++ (generateLexico functions order))
+--generateIterLexico = removeDuplicates((generatePut functions) ++ (generateCopy functions order) ++ (generateSelect functions) ++ (generateLexico functions))
 
 
 --Some test cases
@@ -195,5 +216,13 @@ test7 = generateVariables 3
 
 --test8 = generateIterLexico
 
---somehow does not work like this, but works when I type it in the console :/
---test9 = generateCopy functions (makeTransitive order (Prelude.map (\x -> fst x) functions)) 
+--test9 = makeTransitive order (Prelude.map (\x -> fst x) functions)
+type Terms f v = [Term f v]
+test10 = isDerivable (lhs ruleTest) iterLexicoTRS (rhs ruleTest)
+test11 = termsAreEqual (Fun 'm' [Var 1])  (Fun 'm' [])
+--test12 = ([]::(Terms f v)) == ([]::(Terms f v))
+test13 = ([]::String) == ([]::String)
+test14 = generateLexico functions
+test15 = generatePut functions
+test16 = generateSelect functions
+--test17 = generateCopy functions order
