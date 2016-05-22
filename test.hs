@@ -80,13 +80,15 @@ iterLexicoTRS = [ suc[x] --> suc_1[x]
     , mul_1[add[x, y], z] --> mul[add_1[x, y], mul_1[add[x, y], z]] ]
 
 -- Handy functions:
+makeList:: Int -> [Int]
 makeList 0 = []
 makeList n = makeList (n-1) ++ [n]
 
-
+containsRule:: (Eq lhs, Eq rhs) => [Rule lhs rhs] -> (Rule lhs rhs) -> Bool
 containsRule [] rule = False
 containsRule (h:t) rule = if(h == rule) then True else containsRule t rule
 
+flatten :: [[a]] -> [a]
 flatten [] = []
 flatten (h:t) = h ++ (flatten t)
 
@@ -97,78 +99,91 @@ containsTerm reductions term = if length reductions == 0 then
         True
     else (containsTerm (tail(reductions)) term)
 
+--Get the function symbols for a term. The first 'show' will print '{symbol}' with the ' so I have to get the second item in the [Char]
+getFunctionSymbol::(Eq f, Eq v, Ord f) => (Term f v) -> f 
+getFunctionSymbol (Fun f list) = f
+
 --Also makes it reflexive. Make rules like m -> a, a -> s 
 --into m -> a, a -> s, m -> s, m -> m, a -> a, s -> s
-makeTransitiveRule order termLeft termRight = if isDerivable termLeft order termRight then [Fun (getFunctionSymbol termLeft) [] --> Fun (getFunctionSymbol termRight) []] else []
+
+makeTransitiveRule :: (Eq f, Eq v, Ord f, Ord rhs) => [Rule f rhs] -> (Term f v) -> (Term f v) -> [Rule f rhs]
+makeTransitiveRule order termLeft termRight = if maybe False (\x->x) (isDerivable termLeft order termRight) then [Fun (getFunctionSymbol termLeft) [] --> Fun (getFunctionSymbol termRight) []] else []
+
+makeTransitiveRules::(Eq f, Eq v, Ord f, Ord rhs) => [(Term f v)] -> [Rule f rhs] -> (Term f v) -> [Rule f rhs]
 makeTransitiveRules terms order termLeft = flatten (Prelude.map (makeTransitiveRule order termLeft) terms)
---makeTransitive :: Eq(b) => [Rule Char rhs] -> [Term Char b] -> [Rule Char rhs]
+
+makeTransitive ::(Eq f, Eq v, Ord f, Ord rhs) => [Rule f rhs] -> [Term f v] -> [Rule f rhs]
 makeTransitive order terms = flatten (Prelude.map (makeTransitiveRules terms order) terms)
 
 --Remove reflexivity from terms
+makeIrreflexive :: (Eq lhs, Eq rhs) => [Rule lhs rhs] -> [Rule lhs rhs]
 makeIrreflexive order = Prelude.filter (\x -> (lhs x) /= (rhs x)) order
 
 --get the arity of a term without arity if a list with terms with arity is supplied
---getArity :: [(Term a b, Int)] -> Term a b -> Int
+getArity :: (Eq f, Eq v, Ord f) => [(Term f v, Int)] -> Term f v -> Int
 getArity terms term = snd (head(Prelude.filter (\x -> if fst x == term then True else False) terms)) --not the nicest, but filter should return only 1 element
 
 --Copy a term x number of times (helper for the copy function)
+copyTerm::(Eq f, Eq v, Ord f) => (Term f v) -> Int -> [Term f v]
 copyTerm term 0 = []
 copyTerm term times = term : (copyTerm term (times -1))
 
---Get the function symbols for a term. The first 'show' will print '{symbol}' with the ' so I have to get the second item in the [Char]
-getFunctionSymbol term = head(tail(show (head(Term.funs term))))
-
 --Casts the list into a set and back to remove duplicates POSSIBLE BUG: IS THE ORDER CHANGED???
+removeDuplicates :: (Ord a) => [a] -> [a]
 removeDuplicates list = toList(fromList(list))
 
 --Generates x number of variables, numbering them starting from 1
-generateVariables 0 = []
+generateVariables :: (Eq f, Ord f) => Int -> [Term f Int]
+generateVariables 0 = []::(Eq f, Ord f) =>[(Term f Int)]
 generateVariables arity = generateVariables (arity -1) ++ [Var arity]
 
 --Generates x number of variables, numbering them starting from the offset
+generateVariablesOffset::(Eq f, Ord f) => Int -> Int -> [Term f Int]
 generateVariablesOffset 0  offset = []
 generateVariablesOffset arity  offset = generateVariablesOffset (arity -1) offset ++ [Var (arity+offset)]
 
 --Function which applies the rules x number of times until it found something or not yet.
---Something is still wrong here ...
---getDerivation :: (Eq v) => Term Char v-> Int -> [Reduct  Char v Char] -> [Reduct  Char v Char]
 
---Comparing terms goes wrong
---termsAreEqual :: (Eq a, Eq b) => Term a b -> Term a b -> Bool
-termsAreEqual (Fun a b) (Var c) = False
-termsAreEqual (Var a) (Var b) = a == b
-termsAreEqual (Var a) (Fun b c) = False
-termsAreEqual (Fun a b) (Fun c d) =  if (Term.funs(Fun a []) == Term.funs(Fun c []) && length b == length d && length b /= 0) then and(Prelude.map (\x -> termsAreEqual (fst x) (snd x)) (Prelude.zip b d)) else if (Term.funs(Fun a []) == Term.funs(Fun c []) && length b == length d && length b == 0) then True else False
-
+getDerivation:: (Eq f, Eq v, Ord f, Ord rhs) => (Term f v) -> Int -> [Reduct f v v'] -> [Rule f rhs] -> (Maybe Bool)
 getDerivation term counter reductions trs= if (containsTerm reductions term) then 
-        reductions 
+        Just True
     else if length reductions /= 0 && counter /= 0 then
-        flatten (Prelude.map (\x -> (getDerivation term (counter-1) (fullRewrite trs (result x))) trs) reductions)
+        getDerivation term (counter-1) (flatten (Prelude.map (\x -> (fullRewrite trs (result x))) reductions)) trs
     else 
-        []
+        Nothing
 
 --Should make this return a Maybe, because you cannot say that it is not derivable
+isDerivable ::(Eq f, Eq v, Ord f, Ord rhs) => (Term f v) -> [Rule f rhs] -> (Term f v) -> (Maybe Bool)
 isDerivable leftTerm reductionRules rightTerm = let result = getDerivation rightTerm (length reductionRules +1) (fullRewrite reductionRules leftTerm) reductionRules in 
-    if leftTerm == rightTerm then True else if (length result) == 0 then False else True
+    if leftTerm == rightTerm then Just True else result
 
 --print statement, gave an error otherwise
+printRuleApplications :: (Show f, Show v, Show v') => [Reduct f v v'] -> IO[()]
 printRuleApplications reductions = mapM (\r -> print(result r)) reductions
 
 --Checks if the ruleTest is derivable
+main :: IO()
 main = print (isDerivable (lhs ruleTest) iterLexicoTRS (rhs ruleTest))
 
 --Functions to generate all the rules:
 --Put
+--generatePutRule::(Eq f, Eq v, Ord f, Ord rhs) => ((Term f v), Int) -> Rule f rhs
 generatePutRule (term, arity) = Fun (getFunctionSymbol term) (generateVariables arity) --> Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)
+--generatePut::(Eq f, Eq v, Ord f) => [Term f v] -> [Term f v]
 generatePut terms = Prelude.map generatePutRule terms
 
 --Select
+--generateSelectRule:: ((Term f v), Int) -> Int -> [Term f v]
 generateSelectRule (term, arity) varNumber = if varNumber > 0 then (generateSelectRule (term, arity) (varNumber-1)) ++ [Fun (toUpper(getFunctionSymbol term)) (generateVariables arity) --> Var varNumber] else []
+--generateSelectRules :: ((Term f v), Int) -> [Term f v]
 generateSelectRules (term, arity) = generateSelectRule (term, arity) arity
+
+--generateSelect:: [Term f v] -> [Term f v]
 generateSelect terms = flatten(Prelude.map generateSelectRules terms)
 
 --Copy
-generateCopyRule terms irreflexiveOrder (term, arity) rootTerm = if isDerivable term irreflexiveOrder rootTerm then 
+--generateCopyRule :: [Term f v] -> 
+generateCopyRule terms irreflexiveOrder (term, arity) rootTerm = if maybe False (\x->x) (isDerivable term irreflexiveOrder rootTerm) then 
     [Fun (toUpper(getFunctionSymbol term)) (generateVariables arity) --> 
         Fun (toLower(getFunctionSymbol rootTerm)) (copyTerm (Fun (toUpper(getFunctionSymbol term)) (generateVariables arity)) (getArity terms rootTerm))] 
     else []
@@ -200,7 +215,7 @@ generateLexico terms = flatten (Prelude.map (generateLexicoRules terms) terms)
 --Some test cases
 test0 = print(mul_1[x, y] == mul_1[x, y])
 
-test1 = printRuleApplications(getDerivation (rhs ruleTest) 10 (fullRewrite iterLexicoTRS (lhs ruleTest)) iterLexicoTRS)
+--test1 = printRuleApplications(getDerivation (rhs ruleTest) 10 (fullRewrite iterLexicoTRS (lhs ruleTest)) iterLexicoTRS)
 
 test2 = length (fullRewrite iterLexicoTRS (lhs ruleTest))
 
@@ -210,8 +225,9 @@ test4 = printRuleApplications (fullRewrite iterLexicoTRS (lhs ruleTest))
 
 test5 = containsTerm (fullRewrite [Fun 'g' [ Var 1, Var 2, Fun 'f' [Var 3, Var 2]] --> Fun 'g' [ Var 1, Var 2, Fun 'f' [ Var 3, Var 1]]] (Fun 'g' [ Var 1, Var 2, Fun 'f' [Var 3, Var 2]])) (Fun 'g' [ Var 1, Var 2, Fun 'f' [ Var 3, Var 1]])
 
-test6 = generatePut [((suc []), 1)]
+--test6 = generatePut [((suc []), 1)]
 
+test7:: (Eq f, Ord f)=> [Term f Int]
 test7 = generateVariables 3
 
 --test8 = generateIterLexico
@@ -219,10 +235,10 @@ test7 = generateVariables 3
 --test9 = makeTransitive order (Prelude.map (\x -> fst x) functions)
 type Terms f v = [Term f v]
 test10 = isDerivable (lhs ruleTest) iterLexicoTRS (rhs ruleTest)
-test11 = termsAreEqual (Fun 'm' [Var 1])  (Fun 'm' [])
 --test12 = ([]::(Terms f v)) == ([]::(Terms f v))
 test13 = ([]::String) == ([]::String)
-test14 = generateLexico functions
-test15 = generatePut functions
-test16 = generateSelect functions
+--test14 = generateLexico functions
+--test15 = generatePut functions
+--test16 = generateSelect functions
 --test17 = generateCopy functions order
+test18 =  (Fun 'm' []) == (Fun 'm' [] :: Term Char Char)
