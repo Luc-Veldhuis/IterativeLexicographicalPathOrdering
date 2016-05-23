@@ -1,4 +1,4 @@
-module Generators where
+module IterativeLexicographicalGenerators where
     import Types
     import Helpers
     import Data.Rewriting.Term as Term

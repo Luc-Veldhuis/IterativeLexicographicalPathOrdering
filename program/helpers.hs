@@ -26,6 +26,7 @@ module Helpers where
     getFunctionSymbol::(Eq f, Eq v, Ord f) => (Term (FunctionSymbol f) v) -> (FunctionSymbol f) 
     getFunctionSymbol (Fun f list) = f
 
+    --not necessairy, if it is derivable, it means it is transitive -_-
     makeTransitiveRule :: (Eq f, Eq v, Ord f, Ord rhs) => [Rule (FunctionSymbol f) rhs] -> (Term (FunctionSymbol f) v) -> (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) rhs]
     makeTransitiveRule order termLeft termRight = if maybe False (\x->x) (isDerivable termLeft order termRight) then [Fun (FunctionSymbol (getFunctionName termLeft) (arity (getFunctionSymbol termLeft)) True) [] --> Fun (FunctionSymbol (getFunctionName termRight) (arity (getFunctionSymbol termRight)) True) []] else []
 
@@ -35,6 +36,9 @@ module Helpers where
     makeTransitive ::(Eq f, Eq v, Ord f, Ord rhs) => [Rule (FunctionSymbol f) rhs] -> [Term (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) rhs]
     makeTransitive order terms = flatten (Prelude.map (makeTransitiveRules terms order) terms)
 
+    --Trick to generate empty list with a type which somehow does not give an error
+    emptyList :: (Eq f, Eq v, Ord f) => [(Term (FunctionSymbol f) v)] ->[(Term (FunctionSymbol f) v)]
+    emptyList list = if length list > 0 then emptyList (tail list) else []
 
     --Remove reflexivity from terms
     makeIrreflexive :: (Eq lhs, Eq rhs) => [Rule lhs rhs] -> [Rule lhs rhs]
