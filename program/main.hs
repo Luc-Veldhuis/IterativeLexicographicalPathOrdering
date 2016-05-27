@@ -5,27 +5,13 @@ module Main where
     import IterativeLexicographicalGenerators
     import Helpers
     import Lexicographical
+    import TRSDedekind
+    --import Reader
+    
+    --For now, to see different TRS you can change the TRS to TRSDedekind, TRSAckermann or TRSPredecate.
+    --Note, I just found out that for TRSPredicate the iterative approach hangs a very very long time, but I am looking into that.
 
-    --Function symbols
-    mul = Fun (FunctionSymbol "mul" 2 False)
-    add = Fun (FunctionSymbol "add" 2 False)
-    suc = Fun (FunctionSymbol "suc" 1 False)
-    zero = Fun (FunctionSymbol "zero" 0 False) []
-
-    --Variables
-
-    x = Var 1
-    y = Var 2
-    z = Var 3
-
-    --Dedekind rules
-    termRewiteSystem = [mul[x, suc[y]] --> add[x, mul [x, y]]
-        , add[x, zero] --> x
-        , mul[x, zero] --> zero
-        , add[x, suc[y]] --> suc[add[x,y]]]
-
-    --Order
-    order = [mul[] --> add[], add[] --> suc[]]
+    --Also, I ran this on a windows machine, and last thursday I had trouble getting it to work on my linux machine.
 
     --Check if we found a lexicographical ordering
     isIterativeLexicographicalOrdered :: (Eq f, Eq v, Ord f, Ord v) => [Rule (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) v] -> (Maybe Bool)

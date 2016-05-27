@@ -1,0 +1,1 @@
+[Fun (FunctionSymbol "mul" 2 False) [] --> Fun (FunctionSymbol "add" 2 False)[], Fun (FunctionSymbol "add" 2 False)[] --> Fun (FunctionSymbol "suc" 1 False)[], Fun (FunctionSymbol "suc" 1 False)[] --> Fun (FunctionSymbol "zero" 0 False) []]
