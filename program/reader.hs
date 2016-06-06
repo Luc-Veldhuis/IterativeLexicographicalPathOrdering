@@ -3,12 +3,10 @@ module Reader where
     import Data.Rewriting.Rule as Rule
     import Data.List.Split
     import Control.Monad
-    import Control.Monad.Error ()
+    import Control.Monad.Except ()
     import Text.Parsec hiding (parse)
     import Text.Parsec.Prim (runP)
     import Types
-
-    --Still a work in progress...
 
     --getTRS :: [Rule (FunctionSymbol [Char]) Int]
     --getTRS = do
@@ -22,31 +20,35 @@ module Reader where
     --    parsed <- return ((read fc))
     --    parsed
 
-    -- should look like : (["x", "y"],"f(x,y) --> g(y)|g(y) --> 0")
+    -- should look like : (["x", "y"],"f(x,y) --> g(y)|g(y) --> 0") for TRS
+    -- should look like : ([], "mul --> add|add --> suc") for order
+    parseInput :: IO[(Rule (FunctionSymbol String) Int)]
     parseInput = do
         file <- readFile "trs.txt"
         parsed <- parseFile file
-        parsed
+        return parsed --call main function here
 
+    parseFile :: String -> IO[(Rule (FunctionSymbol String) Int)]
     parseFile file = do
         tuple <- return ((read file)::([String], String))
-        parseRules tuple
+        return (parseRules tuple)
 
+    --parseRules :: ([String], String) -> [(Rule (FunctionSymbol String) Int)]
     parseRules (variables, rules) = Prelude.map (parseRule variables) (splitOn "|" rules)
 
+    --parseRule :: [String] -> String -> (Rule (FunctionSymbol String) Int)
     parseRule variables rule = let splitRule = splitOn "-->" rule in
-        convertStringTerm(fromString variables (head splitRule)) --> convertStringTerm(fromString variables (head(tail(splitRule))) )
+        return (convertStringTerm (fromString variables (head splitRule)) (fromString variables (head(tail(splitRule))) ) )
 
-    --Why does this work, but not what I did :(
-    --parseIO :: [String] -> String -> IO (Term String String)
-    --parseIO xs input = case fromString xs input of
-    --Left err -> do { putStr "parse error at "; print err; mzero }
-    --Right t  -> return t
-
-    convertStringTerm :: Either ParseError (Term String String) -> (Term (FunctionSymbol String) Int)
-    convertStringTerm term = case term of 
+    convertStringTerm :: Either ParseError (Term String String) -> Either ParseError (Term String String) -> IO(Rule (FunctionSymbol String) Int)
+    convertStringTerm leftTerm rightTerm = case leftTerm of 
         Left err -> do { putStr "parse error at "; print err; mzero }
-        Right t  -> return (convertStringTermHelper t)
+        Right left  -> case rightTerm of
+            Left err -> do { putStr "parse error at "; print err; mzero }
+            Right right -> 
+                let leftTerm = convertStringTermHelper left
+                    rightTerm = convertStringTermHelper right in
+                    return (leftTerm --> rightTerm)
 
     convertStringTermHelper :: Term String String -> (Term (FunctionSymbol String) Int)
     convertStringTermHelper (Fun f list) = Fun (FunctionSymbol f (length list) False) (Prelude.map (convertStringTermHelper) list)

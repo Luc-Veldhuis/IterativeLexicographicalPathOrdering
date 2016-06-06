@@ -5,69 +5,56 @@ module IterativeLexicographicalGenerators where
     import Data.Rewriting.Rule as Rule
     import Data.Rewriting.Rules as Rules
     --Generates x number of variables, numbering them starting from 1
-    generateVariables :: (Eq f, Eq v, Ord f, Num v) => v -> [Term f v]
+    generateVariables :: (EOS f) => Int -> [Term (FunctionSymbol f) Int]
     generateVariables 0 = []
-    generateVariables arity = generateVariables (arity -1) ++ [Var arity]
+    generateVariables arity = Prelude.map Var [1..arity]
 
     --Generates x number of variables, numbering them starting from the offset
-    generateVariablesOffset::(Eq f, Ord f, Eq v, Num v) => v -> v -> [Term f v]
+    generateVariablesOffset::(EOS f) => Int -> Int -> [Term (FunctionSymbol f) Int]
     generateVariablesOffset 0  offset = []
-    generateVariablesOffset arity  offset = generateVariablesOffset (arity -1) offset ++ [Var (arity+offset)]
+    generateVariablesOffset arity offset = Prelude.map Var [(1+offset)..(arity+offset)]
 
     --Functions to generate all the rules:
     --Put
-    generatePutRule::(Eq f, Eq v, Ord f) => (Term (FunctionSymbol f) v) -> Rule (FunctionSymbol f) Int
-    generatePutRule term = Fun (FunctionSymbol(getFunctionName term) (arity (getFunctionSymbol term)) False) (generateVariables (arity (getFunctionSymbol term))) --> Fun (FunctionSymbol(getFunctionName term) (arity (getFunctionSymbol term)) True) (generateVariables (arity (getFunctionSymbol term)))
+    generatePutRule::(EOS f) => (FunctionSymbol f) -> Rule (FunctionSymbol f) Int
+    generatePutRule f = let vars = generateVariables $ arity f in 
+        Fun f vars --> Fun (setStar f) vars
 
-    generatePut::(Eq f, Eq v, Ord f) => [Term (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) Int]
-    generatePut terms = Prelude.map generatePutRule terms
+    generatePut::(EOS f) => [(FunctionSymbol f)] -> [Rule (FunctionSymbol f) Int]
+    generatePut functionSymbols = Prelude.map generatePutRule functionSymbols
 
-    --Select
-    generateSelectRule::(Eq f, Eq v, Ord f) => (Term (FunctionSymbol f) v) -> Int -> [Rule (FunctionSymbol f) Int]
-    generateSelectRule term varNumber = if varNumber > 0 then (generateSelectRule term (varNumber-1)) ++ [Fun (FunctionSymbol (getFunctionName term) (arity (getFunctionSymbol term)) True) (generateVariables (arity (getFunctionSymbol term))) --> Var varNumber] else []
+    --Selects
+    generateSelectRules ::(EOS f) => (FunctionSymbol f) -> [Rule (FunctionSymbol f) Int]
+    generateSelectRules f = let vars = (generateVariables $ arity f) in
+        Prelude.map (\var -> Fun (setStar f) vars --> var) vars
 
-    generateSelectRules ::(Eq f, Eq v, Ord f) => (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) Int]
-    generateSelectRules term = generateSelectRule term (arity (getFunctionSymbol term))
+    generateSelect::(EOS f) => [(FunctionSymbol f)] -> [Rule (FunctionSymbol f) Int]
+    generateSelect functionSymbols = concat(Prelude.map generateSelectRules functionSymbols)
 
-    generateSelect::(Eq f, Eq v, Ord f) => [Term (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) Int]
-    generateSelect terms = flatten(Prelude.map generateSelectRules terms)
+    greater :: (EOS f, EOS v) => [Rule (FunctionSymbol f) v] -> FunctionSymbol f -> FunctionSymbol f -> Bool
+    greater order leftFunctionSymbol rightFunctionSymbol = or $ Prelude.map (\rule -> (getFunctionName $ lhs rule) == name leftFunctionSymbol && (getFunctionName $ rhs rule) == name rightFunctionSymbol) order
 
     --Copy
-    generateCopyRule :: (Eq f, Eq v, Ord f, Ord rhs) => [Rule (FunctionSymbol f) rhs] -> (Term (FunctionSymbol f) v) -> (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) Int]
-    generateCopyRule irreflexiveOrder term rootTerm = if maybe False (\x->x) (isDerivable term irreflexiveOrder rootTerm) then 
-        [Fun (FunctionSymbol (getFunctionName term) (arity (getFunctionSymbol term)) True) (generateVariables (arity (getFunctionSymbol term)))  --> 
-            Fun (FunctionSymbol (getFunctionName rootTerm) (arity (getFunctionSymbol rootTerm)) False) (copyTerm (Fun (FunctionSymbol (getFunctionName term) (arity (getFunctionSymbol term)) True) (generateVariables (arity (getFunctionSymbol term)))) (arity (getFunctionSymbol rootTerm)))] 
-        else []
-
-    generateCopyRules ::  (Eq f, Eq v, Ord f, Ord v) => [Rule (FunctionSymbol f) v] -> (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) Int]
-    generateCopyRules order term =  let irreflexiveOrder = makeIrreflexive order in --get irreflexive order
-        let otherTerms = Prelude.filter (\x -> x /= term) (Prelude.map (\x -> rhs x) irreflexiveOrder) in --get all other terms in the order
-            removeDuplicates (flatten (Prelude.map (\x -> generateCopyRule irreflexiveOrder term x) otherTerms)) --generate copy rules
+    generateCopyRules ::  (EOS f, EOS v) => ([Rule (FunctionSymbol f) v]) -> [(FunctionSymbol f)] -> (FunctionSymbol f) -> [Rule (FunctionSymbol f) Int]
+    generateCopyRules order symbols f = 
+        let vars = (generateVariables $ arity f)
+            left = Fun (setStar f) vars
+        in Prelude.map (\g -> left --> Fun g (replicate (arity g) left)) $ filter (greater order f) symbols
 
 
-    generateCopy :: (Eq f, Eq v, Ord f, Ord v) => [Term (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) Int] 
-    generateCopy terms order = flatten (Prelude.map (generateCopyRules order) terms)
+    generateCopy :: (EOS f, EOS v) => ([Rule (FunctionSymbol f) v]) -> [(FunctionSymbol f)] -> [Rule (FunctionSymbol f) Int] 
+    generateCopy order functionSymbols = concat (Prelude.map (generateCopyRules (order) functionSymbols) functionSymbols)
 
     --Lex
-    generateLexicoRHSTerm :: (Eq f, Ord f, Eq v) => (Term (FunctionSymbol f) v) -> Int -> Int -> (Term (FunctionSymbol f) Int) -> [Term (FunctionSymbol f) Int ]
-    generateLexicoRHSTerm substitutionTerm rootArity position lhsTerm = generateVariables (position -1) ++ [Fun (FunctionSymbol(getFunctionName substitutionTerm) (arity (getFunctionSymbol substitutionTerm)) True) (generateVariablesOffset (arity (getFunctionSymbol substitutionTerm)) rootArity)] ++ copyTerm lhsTerm (rootArity-position)
+    generateLexicoRule :: (EOS f) => (FunctionSymbol f) -> (FunctionSymbol f) -> [Rule (FunctionSymbol f) Int]
+    generateLexicoRule f g = 
+        let vars_f = splits (generateVariables $ arity f - 1)
+            vars_g = generateVariablesOffset (arity g) $ arity f
+            left = (\(l,r) -> Fun (setStar f) (l ++ [Fun g vars_g] ++ r))
+        in Prelude.map (\(l,r) ->  left (l,r) --> Fun f (l ++ [Fun (setStar g) vars_g] ++ (replicate (length r) $ left (l,r) ))) $ vars_f
 
-    generateLexicoLHSTerm :: (Eq f, Eq v, Ord f) => (Term (FunctionSymbol f) v) -> Int -> Int -> [Term (FunctionSymbol f) Int ]
-    generateLexicoLHSTerm substitutionTerm rootArity position = generateVariables (position -1) ++ [Fun (FunctionSymbol (getFunctionName substitutionTerm) (arity (getFunctionSymbol substitutionTerm)) False) (generateVariablesOffset (arity (getFunctionSymbol substitutionTerm)) rootArity)] ++ (generateVariablesOffset (rootArity - position) position)
+    generateLexico :: (EOS f) => [(FunctionSymbol f)] -> [Rule (FunctionSymbol f) Int]
+    generateLexico functionSymbols = concat (Prelude.map (\f -> concat (Prelude.map (\g -> generateLexicoRule f g) functionSymbols)) functionSymbols)
 
-    generateLexicoRule :: (Eq f, Eq v, Ord f) => (Term (FunctionSymbol f) v) -> Int -> (Term (FunctionSymbol f) v) -> Rule (FunctionSymbol f) Int
-    generateLexicoRule term position substitutionTerm = let lhsTerm = Fun (FunctionSymbol (getFunctionName term) (arity (getFunctionSymbol term)) True) (generateLexicoLHSTerm substitutionTerm (arity (getFunctionSymbol term)) position) in
-        lhsTerm --> Fun (FunctionSymbol(getFunctionName term) (arity(getFunctionSymbol term)) False) (generateLexicoRHSTerm substitutionTerm (arity (getFunctionSymbol term)) position lhsTerm)
-
-    generateLexicoRulesOnPosition :: (Eq f, Eq v, Ord f) => [(Term (FunctionSymbol f) v)] -> (Term (FunctionSymbol f) v) -> Int -> [Rule (FunctionSymbol f) Int]
-    generateLexicoRulesOnPosition terms term position = Prelude.map (generateLexicoRule term position) terms
-
-    generateLexicoRules :: (Eq f, Eq v, Ord f) => [(Term (FunctionSymbol f) v)] -> (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) Int]
-    generateLexicoRules terms term = let numberOfPositions = makeList (arity (getFunctionSymbol term)) in
-        flatten (Prelude.map (generateLexicoRulesOnPosition terms term) numberOfPositions)
-
-    generateLexico :: (Eq f, Eq v, Ord f) => [(Term (FunctionSymbol f) v)] -> [Rule (FunctionSymbol f) Int]
-    generateLexico terms = flatten (Prelude.map (generateLexicoRules terms) terms)
-
-    generateIterLexico :: (Eq f, Eq v, Ord f, Ord v) => [Rule (FunctionSymbol f) v] -> [(Term (FunctionSymbol f) v)] -> [Rule (FunctionSymbol f) Int]
-    generateIterLexico order functionSymbols = removeDuplicates((generatePut functionSymbols) ++ (generateCopy functionSymbols order) ++ (generateSelect functionSymbols) ++ (generateLexico functionSymbols))
+    generateIterLexico :: (EOS f, EOS v) => ([Rule (FunctionSymbol f) v]) -> [(FunctionSymbol f)] -> [Rule (FunctionSymbol f) Int]
+    generateIterLexico order functionSymbols = removeDuplicates((generatePut functionSymbols) ++ (generateCopy order functionSymbols) ++ (generateSelect functionSymbols) ++ (generateLexico functionSymbols))

@@ -22,4 +22,5 @@ module TRSDedekind where
         , add[x, suc[y]] --> suc[add[x,y]]]
 
     --Order
+    order :: [Rule (FunctionSymbol [Char]) Int]
     order = [mul[] --> add[], add[] --> suc[], suc[] --> zero]

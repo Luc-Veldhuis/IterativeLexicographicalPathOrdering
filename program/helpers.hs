@@ -5,39 +5,39 @@ module Helpers where
     import Data.Rewriting.Rules as Rules
     import Data.Set
 
-    flatten :: [[a]] -> [a]
-    flatten [] = []
-    flatten (h:t) = h ++ (flatten t)
+    setStar :: (EOS f) => (FunctionSymbol f) -> (FunctionSymbol f)
+    setStar f = f { star = True }
 
-    makeList:: Int -> [Int]
-    makeList 0 = []
-    makeList n = makeList (n-1) ++ [n]
+    unsetStar :: (EOS f) => (FunctionSymbol f) -> (FunctionSymbol f)
+    unsetStar f = f { star = False }
 
-    containsTerm :: (Eq f, Eq v) => [Reduct f v v'] -> Term  f v -> Bool
-    containsTerm reductions term = if length reductions == 0 then 
-            False 
-        else if result (head(reductions)) == term then
-            True
-        else (containsTerm (tail(reductions)) term)
+    splits :: (EOS f) => [Term (FunctionSymbol f) Int] -> [([Term (FunctionSymbol f) Int],[Term (FunctionSymbol f) Int])]
+    splits [] = []
+    splits (x:list) = ([],x:list) : (Prelude.map (\(l,r) -> (x:l,r)) $ splits list)
 
-    getFunctionName :: (Eq f, Eq v, Ord f) => (Term (FunctionSymbol f) v) -> f 
+    containsTerm :: (EOS f, EOS v) => [Reduct (FunctionSymbol f) v v'] -> Term (FunctionSymbol f) v -> Bool
+    containsTerm [] term = False
+    containsTerm reductions term = or $ Prelude.map (term ==) $ Prelude.map result reductions
+
+    getFunctionName :: (EOS f, EOS v) => (Term (FunctionSymbol f) v) -> f 
     getFunctionName (Fun f list) = name f
 
-    getFunctionSymbol::(Eq f, Eq v, Ord f) => (Term (FunctionSymbol f) v) -> (FunctionSymbol f) 
+    getFunctionNameInt :: (EOS f) => (Term (FunctionSymbol f) Int) -> f 
+    getFunctionNameInt (Fun f list) = name f
+
+    getFunctionSymbol::(EOS f, EOS v) => (Term (FunctionSymbol f) v) -> (FunctionSymbol f) 
     getFunctionSymbol (Fun f list) = f
 
-    --not necessairy, if it is derivable, it means it is transitive -_-
-    makeTransitiveRule :: (Eq f, Eq v, Ord f, Ord rhs) => [Rule (FunctionSymbol f) rhs] -> (Term (FunctionSymbol f) v) -> (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) rhs]
-    makeTransitiveRule order termLeft termRight = if maybe False (\x->x) (isDerivable termLeft order termRight) then [Fun (FunctionSymbol (getFunctionName termLeft) (arity (getFunctionSymbol termLeft)) True) [] --> Fun (FunctionSymbol (getFunctionName termRight) (arity (getFunctionSymbol termRight)) True) []] else []
+    --makeTransitiveRule :: (FunctionSymbol [Char]) -> [Rule (FunctionSymbol [Char]) Int] -> (FunctionSymbol [Char]) -> [Rule (FunctionSymbol [Char]) Int]
+    --makeTransitiveRule left order right = if maybe False (\x->x) (isDerivable (Fun left ([]::[Term (FunctionSymbol [Char]) Int])) order (Fun right ([]::[Term (FunctionSymbol [Char]) Int]))) then [Fun left [] --> Fun right []] else []
 
-    makeTransitiveRules::(Eq f, Eq v, Ord f, Ord rhs) => [(Term (FunctionSymbol f) v)] -> [Rule (FunctionSymbol f) rhs] -> (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) rhs]
-    makeTransitiveRules terms order termLeft = flatten (Prelude.map (makeTransitiveRule order termLeft) terms)
+    --makeTransitive :: [Rule (FunctionSymbol [Char]) Int] -> [Rule (FunctionSymbol [Char]) Int]
+    --makeTransitive order = let allFunctionSymbols = getFunctionSymbolsFromRules order in
+    --    concat $ Prelude.map (\left -> concat $ Prelude.map (\right -> makeTransitiveRule left order right) allFunctionSymbols) allFunctionSymbols
 
-    makeTransitive ::(Eq f, Eq v, Ord f, Ord rhs) => [Rule (FunctionSymbol f) rhs] -> [Term (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) rhs]
-    makeTransitive order terms = flatten (Prelude.map (makeTransitiveRules terms order) terms)
 
     --Trick to generate empty list with a type which somehow does not give an error
-    emptyList :: (Eq f, Eq v, Ord f) => [(Term (FunctionSymbol f) v)] ->[(Term (FunctionSymbol f) v)]
+    emptyList :: (EOS f, EOS v) => [(Term (FunctionSymbol f) v)] ->[(Term (FunctionSymbol f) v)]
     emptyList list = if length list > 0 then emptyList (tail list) else []
 
     --Remove reflexivity from terms
@@ -45,43 +45,39 @@ module Helpers where
     makeIrreflexive order = Prelude.filter (\x -> (lhs x) /= (rhs x)) order
 
     --get the arity of a term without arity if a list with terms with arity is supplied
-    getArity :: (Eq f, Eq v, Ord f) => [(Term f v, Int)] -> Term f v -> Int
+    getArity :: (EOS f, EOS v) => [(Term f v, Int)] -> Term f v -> Int
     getArity terms term = snd (head(Prelude.filter (\x -> if fst x == term then True else False) terms)) --not the nicest, but filter should return only 1 element
-
-    --Copy a term x number of times (helper for the copy function)
-    copyTerm::(Eq f, Eq v, Ord f) => (Term f v) -> Int -> [Term f v]
-    copyTerm term 0 = []
-    copyTerm term times = term : (copyTerm term (times -1))
 
     --Casts the list into a set and back to remove duplicates POSSIBLE BUG: IS THE ORDER CHANGED???
     removeDuplicates :: (Ord a) => [a] -> [a]
     removeDuplicates list = toList(fromList(list))
 
-    containsRule:: (Eq lhs, Eq rhs) => [Rule lhs rhs] -> (Rule lhs rhs) -> Bool
+    containsRule:: (EOS f, EOS v) => [Rule (FunctionSymbol f) v] -> (Rule (FunctionSymbol f) v) -> Bool
     containsRule [] rule = False
     containsRule (h:t) rule = if(h == rule) then True else containsRule t rule
 
     printRuleApplications :: (Show f, Show v, Show v') => [Reduct f v v'] -> IO[()]
     printRuleApplications reductions = mapM (\r -> print(result r)) reductions
 
-    getDerivation:: (Eq f, Eq v, Ord f, Ord rhs) => (Term f v) -> Int -> [Reduct f v v'] -> [Rule f rhs] -> (Maybe Bool)
+    getDerivation:: (EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> Int -> [Reduct (FunctionSymbol f) v v'] -> [Rule (FunctionSymbol f) rhs] -> (Maybe Bool)
     getDerivation term counter reductions trs= if (containsTerm reductions term) then 
             Just True
         else if length reductions /= 0 && counter /= 0 then
-            getDerivation term (counter-1) (flatten (Prelude.map (\x -> (fullRewrite trs (result x))) reductions)) trs
+            getDerivation term (counter-1) (concat (Prelude.map (\x -> (fullRewrite trs (result x))) reductions)) trs
         else 
             Nothing
 
-    isDerivable ::(Eq f, Eq v, Ord f, Ord rhs) => (Term f v) -> [Rule f rhs] -> (Term f v) -> (Maybe Bool)
+    isDerivable ::(EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) rhs] -> (Term (FunctionSymbol f) v) -> (Maybe Bool)
     isDerivable leftTerm reductionRules rightTerm = let result = getDerivation rightTerm (length reductionRules +1) (fullRewrite reductionRules leftTerm) reductionRules in 
         if leftTerm == rightTerm then Just True else result
 
-    getFunctionSymbolsFromTerm :: (Eq f, Eq v, Ord f) => Term (FunctionSymbol f) v -> [Term (FunctionSymbol f) v]
-    getFunctionSymbolsFromTerm (Fun f list) = if length list > 0 then (Fun f []) : flatten(Prelude.map getFunctionSymbolsFromTerm list) else []
+    getFunctionSymbolsFromTerm :: Term (FunctionSymbol [Char]) Int -> [(FunctionSymbol [Char])]
+    getFunctionSymbolsFromTerm (Fun f []) = [f]
+    getFunctionSymbolsFromTerm (Fun f list) = concat(Prelude.map getFunctionSymbolsFromTerm list)
     getFunctionSymbolsFromTerm (Var v) = []
 
-    getFunctionSymbolsFromRule :: (Eq f, Eq v, Ord f) => Rule (FunctionSymbol f) v -> [Term (FunctionSymbol f) v]
+    getFunctionSymbolsFromRule :: Rule (FunctionSymbol [Char]) Int -> [(FunctionSymbol [Char])]
     getFunctionSymbolsFromRule rule = (getFunctionSymbolsFromTerm (lhs rule)) ++ (getFunctionSymbolsFromTerm (rhs rule))
 
-    getFunctionSymbolsFromRules :: (Eq f, Eq v, Ord f) => [Rule (FunctionSymbol f) v] -> [Term (FunctionSymbol f) v]
-    getFunctionSymbolsFromRules trs = flatten(Prelude.map getFunctionSymbolsFromRule trs)
+    getFunctionSymbolsFromRules :: [Rule (FunctionSymbol [Char]) Int] -> [(FunctionSymbol [Char])]
+    getFunctionSymbolsFromRules trs = concat(Prelude.map getFunctionSymbolsFromRule trs)

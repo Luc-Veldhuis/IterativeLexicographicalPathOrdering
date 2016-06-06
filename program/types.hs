@@ -3,3 +3,4 @@ module Types where
 
     data FunctionSymbol f = FunctionSymbol {name:: f, arity :: Int, star :: Bool} deriving (Show, Eq, Ord, Read)
     (-->) = Rule
+    class (Eq v, Ord v, Show v) => EOS v
