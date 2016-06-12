@@ -1,0 +1,1 @@
+["x","y","z"];"mul(x,suc(y)) --> add(x, mul(x, y))|add(x, zero) --> x"

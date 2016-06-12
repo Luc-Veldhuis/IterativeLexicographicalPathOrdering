@@ -40,7 +40,7 @@ module Reader where
     parseRule variables rule = let splitRule = splitOn "-->" rule in
         return (convertStringTerm (fromString variables (head splitRule)) (fromString variables (head(tail(splitRule))) ) )
 
-    convertStringTerm :: Either ParseError (Term String String) -> Either ParseError (Term String String) -> IO(Rule (FunctionSymbol String) Int)
+    convertStringTerm :: Either ParseError (Term String String) -> Either ParseError (Term String String) -> (Rule (FunctionSymbol String) Int)
     convertStringTerm leftTerm rightTerm = case leftTerm of 
         Left err -> do { putStr "parse error at "; print err; mzero }
         Right left  -> case rightTerm of

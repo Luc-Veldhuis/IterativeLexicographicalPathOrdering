@@ -17,81 +17,64 @@ module Reader where
     --    parsed <- return ((read fc))
     --    parsed
 
-    -- should look like : ["x", "y"];"f(x,y) > g(y)|g(y) > 0" for TRS
+    -- should look like : ["x", "y", "z"];"mul(x,suc(y)) --> add(x, mul(x, y))|add(x, zero) --> x" for TRS
     -- should look like : []; "mul --> add|add --> suc" for order
-    processRules :: [String] -> [(String, String)] -> [Rule (FunctionSymbol String) Int]
-    processRules varList ruleList = Prelude.map (\(l,r) -> (convertStringTerm (fromString varList l) (fromString varList r))) ruleList
+    --processRules :: [String] -> [(String, String)] -> [Rule (FunctionSymbol String) Int]
+    --processRules varList ruleList = Prelude.map (\(l,r) -> (convertStringTerm (fromString varList l) (fromString varList r))) ruleList
 
-    trsFile :: GenParser Char st [(Rule (FunctionSymbol String) Int)]
+    trsFile :: Parser [([String],[(String,String)])]
     trsFile = endBy line eol
 
-    line :: GenParser Char st [(Rule (FunctionSymbol String) Int)]
+    line :: Parser ([String],[(String,String)])
     line = do
         varList <- list
+        (char ';')
         (char '"')
         rulesInput <- rules
         (char '"')
-        return  $processRules varList rulesInput
+        return  $(varList, rulesInput)
 
-    list :: GenParser Char st [String]
+    list :: Parser [String]
     list = do
         (char '[')
-        items <- listItems
+        items <- sepBy listItem (char ',')
         (char ']')
         return items
 
-    listItems :: GenParser Char st [String]
-    listItems = do
-        first <- listItem
-        next <- remainingItems
-        return (first : next)
-
-    listItem :: GenParser Char st String
+    listItem :: Parser String
     listItem = do
         (char '"')
-        item <- many (noneOf ['"'])
+        item <- many (noneOf ['"', ']', '[', ';', '\r', '\n'])
         (char '"')
         return item
 
-    remainingItems :: GenParser Char st [String]
-    remainingItems = do
-        (char ',' >> listItems)
-        <|> return []
+    rules :: Parser [(String, String)]
+    rules = sepBy rule (char '|')
 
-
-    rules :: GenParser Char st [(String, String)]
-    rules = do
-        first <- ruleContent
-        next <- remainingRules
-        return (first : next)
-
-    remainingRules :: GenParser Char st [(String, String)]
-    remainingRules = 
-        (char '|' >> rules)
-        <|> return []
-
-    ruleContent :: GenParser Char st (String, String)
-    ruleContent = do 
-        left <- many (noneOf ">")
-        right <- many (noneOf "|")
+    rule :: Parser (String, String)
+    rule = do
+        left <- many (noneOf "->|\"")
+        (string "-->")
+        right <- many (noneOf "->|\"")
         return (left, right)
 
-    eol :: GenParser Char st Char
-    eol = char '\n'
+    eol :: Parser String
+    eol = try (string "\n") 
+            <|> try (string "\r\n") 
 
-    parseTRS :: String -> Either ParseError [(Rule (FunctionSymbol String) Int)]
-    parseTRS input = parse trsFile "(unknown)" input
+    parseTRS :: IO (Either ParseError [([String],[(String,String)])])
+    parseTRS = parseFromFile trsFile "test.txt"
 
-    convertStringTerm :: Either ParseError (Term String String) -> Either ParseError (Term String String) -> (Rule (FunctionSymbol String) Int)
-    convertStringTerm leftTerm rightTerm = case leftTerm of 
-        Left err -> do { putStr "parse error at "; print err; mzero }
-        Right left  -> case rightTerm of
-            Left err -> do { putStr "parse error at "; print err; mzero }
-            Right right -> 
-                let leftTerm = convertStringTermHelper left
-                    rightTerm = convertStringTermHelper right in
-                    return (leftTerm --> rightTerm)
+    --convertStringTerm :: Either ParseError (Term String String) -> Either ParseError (Term String String) -> (Rule (FunctionSymbol String) Int)
+    --convertStringTerm leftTerm rightTerm = case leftTerm of 
+    --    Left err -> do { putStr "parse error at "; print err; mzero }
+    --    Right left  -> case rightTerm of
+    --        Left err -> do { putStr "parse error at "; print err; mzero }
+    --        Right right -> 
+    --            let leftTerm = convertStringTermHelper left
+    --                rightTerm = convertStringTermHelper right in
+    --                return (leftTerm --> rightTerm)
 
-    convertStringTermHelper :: Term String String -> (Term (FunctionSymbol String) Int)
-    convertStringTermHelper (Fun f list) = Fun (FunctionSymbol f (length list) False) (Prelude.map (convertStringTermHelper) list)
-    convertStringTermHelper (Var v) = Var (read v :: Int)
+    --convertStringTermHelper :: Term String String -> (Term (FunctionSymbol String) Int)
+    --convertStringTermHelper (Fun f list) = Fun (FunctionSymbol f (length list) False) (Prelude.map (convertStringTermHelper) list)
+    --convertStringTermHelper (Var v) = Var (read v :: Int)

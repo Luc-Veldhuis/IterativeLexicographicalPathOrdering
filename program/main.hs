@@ -1,6 +1,7 @@
 module Main where
     import Data.Rewriting.Term as Term
     import Data.Rewriting.Rule as Rule
+    import Data.Rewriting.Rules as Rules
     import Types
     import IterativeLexicographicalGenerators
     import Helpers
@@ -32,3 +33,9 @@ module Main where
     main2 :: IO()
     main2 = let result = (isLexicographicalOrdered (order) termRewiteSystem) in
         if maybe False (\x->x) result then print("The TRS is lexicographical ordered") else print("The TRS might or might not be lexicographical ordered")
+
+    test = let iterativeRules = generateIterLexico (order) $getFunctionSymbolsFromRules termRewiteSystem in
+        let rule = head termRewiteSystem in
+        printRuleApplications $getDerivation (rhs rule) 4 (fullRewrite iterativeRules (lhs rule)) iterativeRules
+            --let result = (isIterativeLexicographicalOrdered iterativeRules [head(termRewiteSystem)]) in
+            --if maybe False (\x->x) result then print("The TRS is lexicographical ordered") else print("The TRS might or might not be lexicographical ordered")

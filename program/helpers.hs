@@ -59,25 +59,26 @@ module Helpers where
     printRuleApplications :: (Show f, Show v, Show v') => [Reduct f v v'] -> IO[()]
     printRuleApplications reductions = mapM (\r -> print(result r)) reductions
 
-    getDerivation:: (EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> Int -> [Reduct (FunctionSymbol f) v v'] -> [Rule (FunctionSymbol f) rhs] -> (Maybe Bool)
+    --getDerivation:: (EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> Int -> [Reduct (FunctionSymbol f) v v'] -> [Rule (FunctionSymbol f) rhs] -> (Maybe Bool)
     getDerivation term counter reductions trs= if (containsTerm reductions term) then 
-            Just True
+            --Just True
+            reductions
         else if length reductions /= 0 && counter /= 0 then
             getDerivation term (counter-1) (concat (Prelude.map (\x -> (fullRewrite trs (result x))) reductions)) trs
         else 
-            Nothing
+            reductions
 
-    isDerivable ::(EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) rhs] -> (Term (FunctionSymbol f) v) -> (Maybe Bool)
+    --isDerivable ::(EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) rhs] -> (Term (FunctionSymbol f) v) -> (Maybe Bool)
     isDerivable leftTerm reductionRules rightTerm = let result = getDerivation rightTerm (length reductionRules +1) (fullRewrite reductionRules leftTerm) reductionRules in 
-        if leftTerm == rightTerm then Just True else result
+        if leftTerm == rightTerm then Just True else Just True--result
 
     getFunctionSymbolsFromTerm :: Term (FunctionSymbol [Char]) Int -> [(FunctionSymbol [Char])]
     getFunctionSymbolsFromTerm (Fun f []) = [f]
-    getFunctionSymbolsFromTerm (Fun f list) = concat(Prelude.map getFunctionSymbolsFromTerm list)
+    getFunctionSymbolsFromTerm (Fun f list) = [f] ++ concat(Prelude.map getFunctionSymbolsFromTerm list)
     getFunctionSymbolsFromTerm (Var v) = []
 
     getFunctionSymbolsFromRule :: Rule (FunctionSymbol [Char]) Int -> [(FunctionSymbol [Char])]
     getFunctionSymbolsFromRule rule = (getFunctionSymbolsFromTerm (lhs rule)) ++ (getFunctionSymbolsFromTerm (rhs rule))
 
     getFunctionSymbolsFromRules :: [Rule (FunctionSymbol [Char]) Int] -> [(FunctionSymbol [Char])]
-    getFunctionSymbolsFromRules trs = concat(Prelude.map getFunctionSymbolsFromRule trs)
+    getFunctionSymbolsFromRules trs = removeDuplicates $ concat(Prelude.map getFunctionSymbolsFromRule trs)

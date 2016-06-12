@@ -23,4 +23,4 @@ module TRSDedekind where
 
     --Order
     order :: [Rule (FunctionSymbol [Char]) Int]
-    order = [mul[] --> add[], add[] --> suc[], suc[] --> zero]
+    order = [mul[] --> add[], add[] --> suc[], suc[] --> zero, mul[] --> suc[], mul[] --> zero, add[] --> zero]
