@@ -65,16 +65,51 @@ module Reader where
     parseTRS :: IO (Either ParseError [([String],[(String,String)])])
     parseTRS = parseFromFile trsFile "test.txt"
 
-    --convertStringTerm :: Either ParseError (Term String String) -> Either ParseError (Term String String) -> (Rule (FunctionSymbol String) Int)
-    --convertStringTerm leftTerm rightTerm = case leftTerm of 
-    --    Left err -> do { putStr "parse error at "; print err; mzero }
-    --    Right left  -> case rightTerm of
-    --        Left err -> do { putStr "parse error at "; print err; mzero }
-    --        Right right -> 
-    --            let leftTerm = convertStringTermHelper left
-    --                rightTerm = convertStringTermHelper right in
-    --                return (leftTerm --> rightTerm)
+    stripParseError :: IO ([String], [(String, String)])
+    stripParseError = do
+        readInput <- parseTRS
+        case readInput of
+            Left err -> do {print $ "A parsing error was found: " ++ (show err); mzero}
+            Right result -> return $head result
 
-    --convertStringTermHelper :: Term String String -> (Term (FunctionSymbol String) Int)
-    --convertStringTermHelper (Fun f list) = Fun (FunctionSymbol f (length list) False) (Prelude.map (convertStringTermHelper) list)
-    --convertStringTermHelper (Var v) = Var (read v :: Int)
+    mergeLists :: [a] -> [b] -> [(a,b)]
+    mergeLists [] rList = []
+    mergeLists lList [] = []
+    mergeLists lList rList = (head(lList), head(rList)) : mergeLists (tail lList) (tail rList)
+    
+    convertToRules :: (EOS f, EOS v) => [(Term (FunctionSymbol f) v, Term (FunctionSymbol f) v)] -> [Rule (FunctionSymbol f) v]
+    convertToRules [] = []
+    convertToRules list = (fst(head list) --> snd (head list)) : (convertToRules $ tail list)
+
+    getTupleFromList :: [(String, Int)] -> String -> (String, Int)
+    getTupleFromList variables variable = let filteredList = filter (\v-> (fst v) == variable) variables in
+        if length filteredList > 0 then
+            head filteredList
+        else
+            (variable, 0)
+
+    convertTerm :: [(String, Int)] -> (Term String String) -> (Term (FunctionSymbol String) Int)
+    convertTerm variables (Fun f []) = Fun (FunctionSymbol f 0 False) []
+    convertTerm variables (Fun f list) = Fun (FunctionSymbol f (length list) False) (Prelude.map (convertTerm variables) list)
+    convertTerm variables (Var v) = Var (snd $ getTupleFromList variables v)
+
+    generateTerm :: [String] -> String -> IO(Term (FunctionSymbol String) Int)
+    generateTerm variables stringTerm = 
+        do
+        term <- (parseIO variables stringTerm)
+        let variablesInt = mergeLists variables [1..(length variables)]
+        let processedTerm = convertTerm variablesInt term
+        return processedTerm
+
+    --processTRS :: 
+    processTRS = 
+        do
+        input <- stripParseError
+        let variables = fst input
+        let termList = snd input
+        let leftTerms = sequence $ Prelude.map (\term -> generateTerm variables $fst term) $ termList
+        let rightTerms = sequence $ Prelude.map (\term -> generateTerm variables $ snd term) $ termList
+        lList <- leftTerms
+        rList <- rightTerms
+        let ruleList = convertToRules $ mergeLists lList rList
+        return ruleList
