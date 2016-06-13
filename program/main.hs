@@ -7,12 +7,11 @@ module Main where
     import Helpers
     import Lexicographical
     import TRSDedekind
-    --import Reader
+    import Reader
     
     --For now, to see different TRS you can change the TRS to TRSDedekind, TRSAckermann or TRSPredecate.
     --Note, I just found out that for TRSPredicate the iterative approach hangs a very very long time, but I am looking into that.
 
-    --Also, I ran this on a windows machine, and last thursday I had trouble getting it to work on my linux machine.
 
     --Check if we found a lexicographical ordering
     isIterativeLexicographicalOrdered :: (EOS f, EOS v) => [Rule (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) v] -> (Maybe Bool)
@@ -21,21 +20,43 @@ module Main where
     isLexicographicalOrdered :: (EOS f, EOS v) => [Rule (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) v] -> (Maybe Bool)
     isLexicographicalOrdered order trs = if and (Prelude.map (\rule -> maybe False (\y->y) (isLexicographical order (lhs rule) (rhs rule))) trs) then Just True else Nothing
 
+    iterativeAppoach :: [Rule (FunctionSymbol [Char]) Int] -> [Rule (FunctionSymbol [Char]) Int] -> IO()
+    iterativeAppoach trs trsOrder = let iterativeRules = generateIterLexico (makeIrreflexive $ makeTransitive trsOrder) (getFunctionSymbolsFromRules trs ) in
+        let result = (isIterativeLexicographicalOrdered iterativeRules trs) in
+            if maybe False (\x->x) result then print("The TRS is lexicographical ordered") else print("The TRS might or might not be lexicographical ordered")
+
+    recursiveApproch :: [Rule (FunctionSymbol [Char]) Int] -> [Rule (FunctionSymbol [Char]) Int] -> IO()
+    recursiveApproch trs trsOrder = let result = (isLexicographicalOrdered (makeIrreflexive $ makeTransitive trsOrder) trs) in
+        if maybe False (\x->x) result then print("The TRS is lexicographical ordered") else print("The TRS might or might not be lexicographical ordered")
 
     --iterative
     main :: IO()
-    --main = (\x-> print("test")) ((getFunctionSymbolsFromRules termRewiteSystem ))
-    main = let iterativeRules = generateIterLexico (order) (getFunctionSymbolsFromRules termRewiteSystem ) in
-        let result = (isIterativeLexicographicalOrdered iterativeRules termRewiteSystem) in
-            if maybe False (\x->x) result then print("The TRS is lexicographical ordered") else print("The TRS might or might not be lexicographical ordered")
+    main = iterativeAppoach termRewiteSystem order
 
     --recursive
     main2 :: IO()
-    main2 = let result = (isLexicographicalOrdered (order) termRewiteSystem) in
-        if maybe False (\x->x) result then print("The TRS is lexicographical ordered") else print("The TRS might or might not be lexicographical ordered")
+    main2 = recursiveApproch termRewiteSystem order
 
-    test = let iterativeRules = generateIterLexico (order) $getFunctionSymbolsFromRules termRewiteSystem in
-        let rule = head termRewiteSystem in
-        printRuleApplications $getDerivation (rhs rule) 4 (fullRewrite iterativeRules (lhs rule)) iterativeRules
-            --let result = (isIterativeLexicographicalOrdered iterativeRules [head(termRewiteSystem)]) in
-            --if maybe False (\x->x) result then print("The TRS is lexicographical ordered") else print("The TRS might or might not be lexicographical ordered")
+    iterativeFromInput :: String -> String -> IO()
+    iterativeFromInput trsFile orderFile = 
+        do
+        trs <- processTRS trsFile
+        order <- processOrder orderFile
+        iterativeAppoach trs order
+
+    recursiveFromInput :: String -> String -> IO()
+    recursiveFromInput trsFile orderFile = 
+        do
+        trs <- processTRS trsFile
+        order <- processOrder orderFile
+        recursiveApproch trs order
+
+    test = 
+        do
+        order <- processOrder "order.txt"
+        return $greater (makeIrreflexive $ makeTransitive order) (FunctionSymbol "mul" 2 False) (FunctionSymbol "mul" 0 False)
+
+    test2 = 
+        do
+        trs <- processTRS "trs.txt"
+        return trs

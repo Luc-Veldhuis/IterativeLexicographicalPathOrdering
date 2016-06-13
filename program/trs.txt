@@ -1,4 +1,1 @@
-[Fun (FunctionSymbol "mul" 2 False)[Var 1, Fun (FunctionSymbol "suc" 1 False)[Var 2]] --> Fun (FunctionSymbol "add" 2 False)[Var 1, Fun (FunctionSymbol "mul" 2 False) [Var 1, Var 2]]
-        , Fun (FunctionSymbol "add" 2 False)[Var 1, Fun (FunctionSymbol "zero" 1 False) []] --> Var 1
-        , Fun (FunctionSymbol "mul" 2 False)[Var 1, Fun (FunctionSymbol "zero" 1 False) []] --> Fun (FunctionSymbol "zero" 1 False) []
-        , Fun (FunctionSymbol "add" 2 False)[Var 1, Fun (FunctionSymbol "suc" 1 False)[Var 2]] --> Fun (FunctionSymbol "suc" 1 False)[Fun (FunctionSymbol "add" 2 False)[Var 1,Var 2]]]
+["x","y","z"];"mul(x,suc(y)) -->add(x, mul(x, y))|add(x, zero) -->x|mul(x,zero) -->zero|add(x,suc(y))-->suc(add(x,y))"
