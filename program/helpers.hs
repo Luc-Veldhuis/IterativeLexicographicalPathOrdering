@@ -29,6 +29,8 @@ module Helpers where
     makeTransitive rules = let terms = Prelude.map (\f -> (Fun f [])) $ getFunctionSymbolsFromRules rules in
         concat $ Prelude.map (\lTerm -> concat $ Prelude.map (\rTerm -> if (maybe False (\x->x) $ isDerivable lTerm rules rTerm) then [(lTerm --> rTerm)] else []) terms ) terms
 
+    greater :: (EOS f, EOS v) => [Rule (FunctionSymbol f) v] -> FunctionSymbol f -> FunctionSymbol f -> Bool
+    greater order leftFunctionSymbol rightFunctionSymbol = or $ Prelude.map (\rule -> (getFunctionName $ lhs rule) == name leftFunctionSymbol && (getFunctionName $ rhs rule) == name rightFunctionSymbol) order
 
     --Trick to generate empty list with a type which somehow does not give an error
     emptyList :: (EOS f, EOS v) => [(Term (FunctionSymbol f) v)] ->[(Term (FunctionSymbol f) v)]

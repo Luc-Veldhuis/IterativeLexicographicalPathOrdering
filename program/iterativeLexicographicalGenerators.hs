@@ -31,9 +31,6 @@ module IterativeLexicographicalGenerators where
     generateSelect::(EOS f) => [(FunctionSymbol f)] -> [Rule (FunctionSymbol f) Int]
     generateSelect functionSymbols = concat(Prelude.map generateSelectRules functionSymbols)
 
-    greater :: (EOS f, EOS v) => [Rule (FunctionSymbol f) v] -> FunctionSymbol f -> FunctionSymbol f -> Bool
-    greater order leftFunctionSymbol rightFunctionSymbol = or $ Prelude.map (\rule -> (getFunctionName $ lhs rule) == name leftFunctionSymbol && (getFunctionName $ rhs rule) == name rightFunctionSymbol) order
-
     --Copy
     generateCopyRules ::  (EOS f, EOS v) => ([Rule (FunctionSymbol f) v]) -> [(FunctionSymbol f)] -> (FunctionSymbol f) -> [Rule (FunctionSymbol f) Int]
     generateCopyRules order symbols f = 

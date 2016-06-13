@@ -15,7 +15,7 @@ module Lexicographical where
     isGreater irreflexiveOrder (Var v) (Fun f list) = Just False --trivial
     isGreater irreflexiveOrder (Fun f list) (Var v) = Just True ----LPO1
     isGreater irreflexiveOrder (Fun f1 list1) (Fun f2 list2) = if or (Prelude.map (\x -> or [(maybe False (\y->y) (isGreater irreflexiveOrder x (Fun f2 list2))), (x == (Fun f2 list2))] ) list1) then Just True --lpo2a
-        else if (and [(maybe False (\x->x) (isDerivable (Fun f1 (emptyList list1)) irreflexiveOrder (Fun f2 (emptyList list2)))), and (Prelude.map (\x-> maybe False (\y->y) (isGreater irreflexiveOrder (Fun f1 list1) x) ) list2)]) then Just True--lpo2b
+        else if (and [greater irreflexiveOrder f1 f2, and (Prelude.map (\x-> maybe False (\y->y) (isGreater irreflexiveOrder (Fun f1 list1) x) ) list2)]) then Just True--lpo2b
         else if (and [(f1 == f2), (and (Prelude.map (\x-> maybe False (\y->y) (isGreater irreflexiveOrder (Fun f1 list1) x)) list2))]) then (isLexicographicalList irreflexiveOrder list1 list2) --lpo2c
         else Nothing
 
