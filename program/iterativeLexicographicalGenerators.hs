@@ -53,5 +53,5 @@ module IterativeLexicographicalGenerators where
     generateLexico :: (EOS f) => [(FunctionSymbol f)] -> [Rule (FunctionSymbol f) Int]
     generateLexico functionSymbols = concat (Prelude.map (\f -> concat (Prelude.map (\g -> generateLexicoRule f g) functionSymbols)) functionSymbols)
 
-    generateIterLexico :: (EOS f, EOS v) => ([Rule (FunctionSymbol f) v]) -> [(FunctionSymbol f)] -> [Rule (FunctionSymbol f) Int]
-    generateIterLexico order functionSymbols = removeDuplicates((generatePut functionSymbols) ++ (generateCopy order functionSymbols) ++ (generateSelect functionSymbols) ++ (generateLexico functionSymbols))
+    generateIterLexico :: (EOS f, EOS v) => ([Rule (FunctionSymbol f) v]) -> [(FunctionSymbol f)] -> ([Rule (FunctionSymbol f) Int],[Rule (FunctionSymbol f) Int])
+    generateIterLexico order functionSymbols =  ((generateSelect functionSymbols) ++ (generateLexico functionSymbols) ++ removeDuplicates(generateCopy order functionSymbols), removeDuplicates (generatePut functionSymbols))

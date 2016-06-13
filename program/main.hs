@@ -14,8 +14,8 @@ module Main where
 
 
     --Check if we found a lexicographical ordering
-    isIterativeLexicographicalOrdered :: (EOS f, EOS v) => [Rule (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) v] -> (Maybe Bool)
-    isIterativeLexicographicalOrdered iterativeRules trs = if (and (Prelude.map (\rule -> (maybe False (\x->x)(isDerivable (lhs rule) iterativeRules (rhs rule)))) trs)) then Just True else Nothing
+    isIterativeLexicographicalOrdered :: (EOS f, EOS v) => ([Rule (FunctionSymbol f) v],[Rule (FunctionSymbol f) v]) -> [Rule (FunctionSymbol f) v] -> (Maybe Bool)
+    isIterativeLexicographicalOrdered iterativeRules trs = if (and (Prelude.map (\rule -> (maybe False (\x->x)(isDerivableIterative (lhs rule) iterativeRules (rhs rule)))) trs)) then Just True else Nothing
 
     isLexicographicalOrdered :: (EOS f, EOS v) => [Rule (FunctionSymbol f) v] -> [Rule (FunctionSymbol f) v] -> (Maybe Bool)
     isLexicographicalOrdered order trs = if and (Prelude.map (\rule -> maybe False (\y->y) (isLexicographical order (lhs rule) (rhs rule))) trs) then Just True else Nothing
@@ -60,3 +60,6 @@ module Main where
         do
         trs <- processTRS "trs.txt"
         return trs
+
+    test3 = let trs = generateIterLexico (makeIrreflexive $ makeTransitive order) (getFunctionSymbolsFromRules termRewiteSystem ) in
+        isDerivableIterative (lhs $ head termRewiteSystem) trs (rhs $ head termRewiteSystem)

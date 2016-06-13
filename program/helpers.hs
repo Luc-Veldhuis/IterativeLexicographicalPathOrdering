@@ -1,9 +1,11 @@
 module Helpers where
     import Types
+    import Data.List
     import Data.Rewriting.Term as Term
     import Data.Rewriting.Rule as Rule
     import Data.Rewriting.Rules as Rules
-    import Data.Set
+    import Data.Set hiding (filter)
+    import Debug.Trace
 
     setStar :: (EOS f) => (FunctionSymbol f) -> (FunctionSymbol f)
     setStar f = f { star = True }
@@ -63,8 +65,37 @@ module Helpers where
         else 
             Nothing
 
+    getDerivationIterative:: (EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> Int -> [Reduct (FunctionSymbol f) v v'] -> ([Rule (FunctionSymbol f) rhs],[Rule (FunctionSymbol f) rhs]) -> (Maybe Bool)
+    getDerivationIterative term counter reductions (trs, putTRS)= if (containsTerm (trace (show $ Prelude.map result reductions) reductions) term) then 
+            Just True
+        else if length reductions /= 0 && counter /= 0 then
+            getDerivationIterative term (counter-1) (concat (Prelude.map (\x -> (fullRewrite trs (result x))) $ filterDerivataions $sortDerivations reductions))$trace "normal" (trs, putTRS)
+        else if length reductions == 0 && counter /= 0 then
+            getDerivationIterative term (counter-1) (concat (Prelude.map (\x -> (fullRewrite putTRS (result x))) $ filterDerivataions $sortDerivations reductions))$trace "put" (trs, putTRS)
+        else 
+            Nothing
+
+    sortDerivations :: (EOS f, EOS v) =>  [Reduct (FunctionSymbol f) v v'] -> [Reduct (FunctionSymbol f) v v']
+    sortDerivations derivations = sortOn (\derivation -> case result derivation of 
+        Var v -> 0
+        Fun f list -> 1 + (sum $ Prelude.map (depth) list)) derivations
+
+    depth ::(EOS f, EOS v) =>  (Term (FunctionSymbol f) v) -> Int
+    depth (Fun f []) = 1
+    depth (Fun f list) = 1 + (sum $ Prelude.map (depth) list)
+    depth (Var v) = 0
+
+    filterDerivataions ::(EOS f, EOS v) => [Reduct (FunctionSymbol f) v v'] -> [Reduct (FunctionSymbol f) v v']
+    filterDerivataions derivations = filter (\derivation -> case result derivation of
+                Var v -> True
+                Fun f list -> 1 + (sum $ Prelude.map (depth) list) < 10) derivations
+
     isDerivable ::(EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) rhs] -> (Term (FunctionSymbol f) v) -> (Maybe Bool)
     isDerivable leftTerm reductionRules rightTerm = let result = getDerivation rightTerm (length reductionRules +1) (fullRewrite reductionRules leftTerm) reductionRules in 
+        if leftTerm == rightTerm then Just True else result
+
+    isDerivableIterative ::(EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> ([Rule (FunctionSymbol f) rhs],[Rule (FunctionSymbol f) rhs]) -> (Term (FunctionSymbol f) v) -> (Maybe Bool)
+    isDerivableIterative leftTerm (reductionRules,putRules) rightTerm = let result = getDerivationIterative rightTerm (length reductionRules +1) (fullRewrite putRules leftTerm) (reductionRules,putRules) in 
         if leftTerm == rightTerm then Just True else result
 
     getFunctionSymbolsFromTerm :: (EOS f, EOS v) =>  Term (FunctionSymbol f) v -> [(FunctionSymbol f)]
