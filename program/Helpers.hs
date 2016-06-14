@@ -69,16 +69,16 @@ module Helpers where
     getDerivationIterative term counter reductions (trs, putTRS)= if (containsTerm (trace (show $ Prelude.map result reductions) reductions) term) then 
             Just True
         else if length reductions /= 0 && counter /= 0 then
-            getDerivationIterative term (counter-1) (concat (Prelude.map (\x -> (fullRewrite trs (result x))) $ filterDerivataions $sortDerivations reductions))$trace "normal" (trs, putTRS)
+            getDerivationIterative term (counter-1) (concat (Prelude.map (\x -> (fullRewrite trs (result x))) $ filterDerivataions  reductions))$trace "normal" (trs, putTRS)
         else if length reductions == 0 && counter /= 0 then
-            getDerivationIterative term (counter-1) (concat (Prelude.map (\x -> (fullRewrite putTRS (result x))) $ filterDerivataions $sortDerivations reductions))$trace "put" (trs, putTRS)
+            getDerivationIterative term (counter-1) (concat (Prelude.map (\x -> (fullRewrite putTRS (result x))) $ filterDerivataions  reductions))$trace "put" (trs, putTRS)
         else 
             Nothing
 
-    sortDerivations :: (EOS f, EOS v) =>  [Reduct (FunctionSymbol f) v v'] -> [Reduct (FunctionSymbol f) v v']
-    sortDerivations derivations = sortOn (\derivation -> case result derivation of 
-        Var v -> 0
-        Fun f list -> 1 + (sum $ Prelude.map (depth) list)) derivations
+    --sortDerivations :: (EOS f, EOS v) =>  [Reduct (FunctionSymbol f) v v'] -> [Reduct (FunctionSymbol f) v v']
+    --sortDerivations derivations = sortOn (\derivation -> case result derivation of 
+    --    Var v -> 0
+    --    Fun f list -> 1 + (sum $ Prelude.map (depth) list)) derivations
 
     depth ::(EOS f, EOS v) =>  (Term (FunctionSymbol f) v) -> Int
     depth (Fun f []) = 1
