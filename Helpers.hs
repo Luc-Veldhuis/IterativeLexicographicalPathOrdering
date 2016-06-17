@@ -6,7 +6,6 @@ module Helpers where
     import Data.Rewriting.Pos as Pos
     import Data.Rewriting.Rules as Rules
     import Data.Set hiding (filter)
-    import Debug.Trace
 
     setStar :: (EOS f) => (FunctionSymbol f) -> (FunctionSymbol f)
     setStar f = f { star = True }
@@ -68,7 +67,7 @@ module Helpers where
             Nothing
 
     getDerivationIterative:: (EOS f, EOS v, EOS rhs, Num v) => (Term (FunctionSymbol f) v) -> Int -> [Reduct (FunctionSymbol f) v v'] -> ([Rule (FunctionSymbol f) rhs],[Rule (FunctionSymbol f) rhs]) -> (Maybe Bool)
-    getDerivationIterative term counter reductions (trs, putTRS)= if (containsTerm (trace (show $ length $ Prelude.map result reductions) reductions) term) then 
+    getDerivationIterative term counter reductions (trs, putTRS)= if (containsTerm reductions term) then 
             Just True
         else if length reductions /= 0 && counter /= 0 then
             getDerivationIterative term (counter-1) (filterReductions term $concat $ Prelude.map (\x -> (fullRewrite trs (result x))) reductions)  (trs, putTRS)
@@ -76,11 +75,6 @@ module Helpers where
             getDerivationIterative term (counter-1) (filterReductions term $concat $ Prelude.map (\x -> (fullRewrite putTRS (result x))) reductions )  (trs, putTRS)
         else 
             Nothing
-
-    --sortDerivations :: (EOS f, EOS v) =>  [Reduct (FunctionSymbol f) v v'] -> [Reduct (FunctionSymbol f) v v']
-    --sortDerivations derivations = sortOn (\derivation -> case result derivation of 
-    --    Var v -> 0
-    --    Fun f list -> 1 + (sum $ Prelude.map (depth) list)) derivations
 
     getPath :: (EOS f, EOS v, Num v) => (Term (FunctionSymbol f) v) -> Pos -> [FunctionSymbol f]
     getPath term [] = if isFun term then [getFunctionSymbol term] else []
