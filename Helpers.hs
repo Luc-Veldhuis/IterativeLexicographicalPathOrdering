@@ -16,7 +16,8 @@ module Helpers where
 
     splits :: (EOS f) => [Term (FunctionSymbol f) Int] -> [([Term (FunctionSymbol f) Int],[Term (FunctionSymbol f) Int])]
     splits [] = []
-    splits (x:list) = ([],x:list) : (Prelude.map (\(l,r) -> (x:l,r)) $ splits list)
+    splits (x:[]) = ([x],[]) : [([], [x])]
+    splits (x:list) = ([],x:list) : (Prelude.map (\(l,r) -> (x:l,r)) $ splits list) -- ++ [(x:list, [])]
 
     containsTerm :: (EOS f, EOS v) => [Reduct (FunctionSymbol f) v v'] -> Term (FunctionSymbol f) v -> Bool
     containsTerm [] term = False
@@ -89,8 +90,7 @@ module Helpers where
 
     functionSymbolCanBeDerived :: (EOS f) => (FunctionSymbol f) -> (FunctionSymbol f) -> Bool
     functionSymbolCanBeDerived from to = if from == to then True
-        else if star from then True
-            else False
+        else star from
 
     termCanBeDerived :: (EOS f, EOS v, Num v) => (Term (FunctionSymbol f) v) -> Pos -> (Term (FunctionSymbol f) v) -> Bool
     termCanBeDerived newTerm positionInTerm toTerm = let pathSoFar = getPath newTerm positionInTerm in
