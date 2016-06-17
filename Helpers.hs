@@ -95,7 +95,7 @@ module Helpers where
     termCanBeDerived :: (EOS f, EOS v, Num v) => (Term (FunctionSymbol f) v) -> Pos -> (Term (FunctionSymbol f) v) -> Bool
     termCanBeDerived newTerm positionInTerm toTerm = let pathSoFar = getPath newTerm positionInTerm in
         let pathToFollow = getPath toTerm positionInTerm in
-        and $ Prelude.map (\index -> functionSymbolCanBeDerived (pathSoFar !! index) (pathToFollow !! index) ) [0.. (length pathSoFar)-1]
+        and $ Prelude.map (\index -> if index >= length pathToFollow then False else functionSymbolCanBeDerived (pathSoFar !! index) (pathToFollow !! index) ) [0.. (length pathSoFar)-1]
 
     filterReductions :: (EOS f, EOS v, EOS rhs, Num v) => (Term (FunctionSymbol f) v) -> [Reduct (FunctionSymbol f) v rhs] -> [Reduct (FunctionSymbol f) v rhs]
     filterReductions toTerm reductions= filter (\reduction -> termCanBeDerived (result reduction) (pos reduction) toTerm) reductions
