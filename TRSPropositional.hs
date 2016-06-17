@@ -25,4 +25,5 @@ module TRSPropositional where
         , land[alpha, alpha] --> alpha]
 
     --Order
+    order :: [Rule (FunctionSymbol [Char]) Int]
     order = [neg[] --> land[], land[] --> lor[]]

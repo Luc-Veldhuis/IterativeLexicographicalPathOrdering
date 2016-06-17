@@ -19,4 +19,5 @@ module TRSAckermann where
         , ack[suc[x], suc[y]] --> ack[x, ack[suc[x], y]]]
 
     --Order
+    order :: [Rule (FunctionSymbol [Char]) Int]
     order = [ack[] --> suc[], suc[] --> zero]
