@@ -6,7 +6,7 @@ module Main where
     import IterativeLexicographicalGenerators
     import Helpers
     import Lexicographical
-    import TRSDedekind
+    import TRSPropositional
     import Reader
     
     --For now, to see different TRS you can change the TRS to TRSDedekind, TRSAckermann or TRSPredecate.
@@ -50,18 +50,3 @@ module Main where
         trs <- processTRS trsFile
         order <- processOrder orderFile
         recursiveApproch trs order
-
-    test = 
-        do
-        order <- processOrder "order.txt"
-        return $greater (makeIrreflexive $ makeTransitive order) (FunctionSymbol "mul" 2 False) (FunctionSymbol "mul" 0 False)
-
-    test2 = 
-        do
-        trs <- processTRS "trs.txt"
-        return trs
-
-    test3 = let trs = generateIterLexico (makeIrreflexive $ makeTransitive order) (getFunctionSymbolsFromRules termRewiteSystem ) in
-        isDerivableIterative (lhs $ head termRewiteSystem) trs (rhs $ head termRewiteSystem)
-
-    test4 = termCanBeDerived (lhs $ head termRewiteSystem ) [] (rhs $ head termRewiteSystem )

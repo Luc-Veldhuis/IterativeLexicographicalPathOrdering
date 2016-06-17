@@ -14,7 +14,7 @@ module Helpers where
     unsetStar f = f { star = False }
 
     splits :: (EOS f) => [Term (FunctionSymbol f) Int] -> [([Term (FunctionSymbol f) Int],[Term (FunctionSymbol f) Int])]
-    splits [] = []
+    splits [] = [([],[])]
     splits (x:[]) = ([x],[]) : [([], [x])]
     splits (x:list) = ([],x:list) : (Prelude.map (\(l,r) -> (x:l,r)) $ splits list) -- ++ [(x:list, [])]
 
@@ -66,18 +66,18 @@ module Helpers where
         else 
             Nothing
 
-    getDerivationIterative:: (EOS f, EOS v, EOS rhs, Num v) => (Term (FunctionSymbol f) v) -> Int -> [Reduct (FunctionSymbol f) v v'] -> ([Rule (FunctionSymbol f) rhs],[Rule (FunctionSymbol f) rhs]) -> (Maybe Bool)
-    getDerivationIterative term counter reductions (trs, putTRS)= if (containsTerm reductions term) then 
+    getDerivationIterative:: (EOS f, EOS v, EOS v', Num v) => (Term (FunctionSymbol f) v) -> Int -> [Reduct (FunctionSymbol f) v v'] -> ([Rule (FunctionSymbol f) v'],[Rule (FunctionSymbol f) v']) -> [Reduct (FunctionSymbol f) v v'] -> (Maybe Bool)
+    getDerivationIterative term counter reductions (trs, putTRS) previousReductions = if (containsTerm reductions term) then 
             Just True
         else if length reductions /= 0 && counter /= 0 then
-            getDerivationIterative term (counter-1) (filterReductions term $concat $ Prelude.map (\x -> (fullRewrite trs (result x))) reductions)  (trs, putTRS)
+            getDerivationIterative term (counter-1) (filterReductions term $concat $ Prelude.map (\x -> (fullRewrite trs (result x))) reductions)  (trs, putTRS) reductions
         else if length reductions == 0 && counter /= 0 then
-            getDerivationIterative term (counter-1) (filterReductions term $concat $ Prelude.map (\x -> (fullRewrite putTRS (result x))) reductions )  (trs, putTRS)
+            getDerivationIterative term (counter-1) (filterReductions term $concat $ Prelude.map (\x -> (fullRewrite putTRS (result x))) previousReductions ) (trs, putTRS) previousReductions
         else 
             Nothing
 
     getPath :: (EOS f, EOS v, Num v) => (Term (FunctionSymbol f) v) -> Pos -> [FunctionSymbol f]
-    getPath term [] = if isFun term then [getFunctionSymbol term] else []
+    getPath term [] = [] -- if isFun term then [getFunctionSymbol term] else []
     getPath term position = let termAtPosition = maybe (Var 0) (\x->x) $ subtermAt term position in
         let currentFunctionSymbol = if isFun termAtPosition then [getFunctionSymbol termAtPosition] else [] in
             (getPath term $init position) ++ currentFunctionSymbol
@@ -99,7 +99,7 @@ module Helpers where
         if leftTerm == rightTerm then Just True else result
 
     isDerivableIterative ::(EOS f, EOS v, EOS rhs, Num v) => (Term (FunctionSymbol f) v) -> ([Rule (FunctionSymbol f) rhs],[Rule (FunctionSymbol f) rhs]) -> (Term (FunctionSymbol f) v) -> (Maybe Bool)
-    isDerivableIterative leftTerm (reductionRules,putRules) rightTerm = let result = getDerivationIterative rightTerm (length reductionRules +1) (fullRewrite putRules leftTerm) (reductionRules,putRules) in 
+    isDerivableIterative leftTerm (reductionRules,putRules) rightTerm = let result = getDerivationIterative rightTerm (length reductionRules + length putRules +1) (fullRewrite putRules leftTerm) (reductionRules,putRules) [] in 
         if leftTerm == rightTerm then Just True else result
 
     getFunctionSymbolsFromTerm :: (EOS f, EOS v) =>  Term (FunctionSymbol f) v -> [(FunctionSymbol f)]
