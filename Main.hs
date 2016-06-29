@@ -27,7 +27,7 @@ module Main where
 
     recursiveApproch :: [Rule (FunctionSymbol [Char]) Int] -> [Rule (FunctionSymbol [Char]) Int] -> IO()
     recursiveApproch trs trsOrder = let result = (isLexicographicalOrdered (makeIrreflexive $ makeTransitive trsOrder) trs) in
-        if maybe False (\x->x) result then print("The TRS is lexicographically ordered") else print("The TRS is not be lexicographically ordered")
+        if maybe False (\x->x) result then print("The TRS is lexicographically ordered") else print("The TRS is not lexicographically ordered")
 
     --iterative
     main :: IO()

@@ -1,0 +1,1 @@
+["x","y"];"Ack(0,y)-->S(y)|Ack(S(x),0)-->Ack(x,S(0))|Ack(S(x),S(y))-->Ack(x,Ack(S(x),y))"

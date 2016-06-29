@@ -1,0 +1,1 @@
+["a","b","g"];"neg(neg(a))-->a|neg(or(a,b))-->and(neg(a),neg(b))|neg(and(a,b))-->or(neg(a),neg(b))|and(a,or(b,g))-->or(and(a,b),and(a,g))|and(or(b,g),a)-->or(and(b,a),and(g,a))|and(and(a,b),g)-->and(a,and(b,g))|or(a,a)-->a|and(a,a)-->a"

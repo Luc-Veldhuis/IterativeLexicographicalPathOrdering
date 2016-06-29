@@ -95,12 +95,11 @@ module Helpers where
     filterReductions toTerm reductions= filter (\reduction -> termCanBeDerived (result reduction) (pos reduction) toTerm) reductions
 
     isDerivable ::(EOS f, EOS v, EOS rhs) => (Term (FunctionSymbol f) v) -> [Rule (FunctionSymbol f) rhs] -> (Term (FunctionSymbol f) v) -> (Maybe Bool)
-    isDerivable leftTerm reductionRules rightTerm = let result = getDerivation rightTerm (length reductionRules +1) (fullRewrite reductionRules leftTerm) reductionRules in 
-        if leftTerm == rightTerm then Just True else result
+    isDerivable leftTerm reductionRules rightTerm = getDerivation rightTerm (length reductionRules +1) (fullRewrite reductionRules leftTerm) reductionRules
 
     isDerivableIterative ::(EOS f, EOS v, EOS rhs, Num v) => (Term (FunctionSymbol f) v) -> ([Rule (FunctionSymbol f) rhs],[Rule (FunctionSymbol f) rhs]) -> (Term (FunctionSymbol f) v) -> (Maybe Bool)
     isDerivableIterative leftTerm (reductionRules,putRules) rightTerm = let result = getDerivationIterative rightTerm (length reductionRules + length putRules +1) (fullRewrite putRules leftTerm) (reductionRules,putRules) [] in 
-        if leftTerm == rightTerm then Just True else result
+        result
 
     getFunctionSymbolsFromTerm :: (EOS f, EOS v) =>  Term (FunctionSymbol f) v -> [(FunctionSymbol f)]
     getFunctionSymbolsFromTerm (Fun f []) = [f]
